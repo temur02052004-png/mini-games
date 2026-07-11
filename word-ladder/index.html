@@ -38,6 +38,7 @@
         <div class="feedback" id="feedback"></div>
 
         <div class="toolbar">
+          <button id="undoBtn">↶ Undo</button>
           <button id="hintBtn">💡 Hint</button>
           <button id="giveUpBtn">Reveal Answer</button>
           <button id="newPuzzleBtn">🎲 Practice Puzzle</button>
@@ -50,15 +51,23 @@
         </div>
       </section>
 
-      <section class="rules-card">
-        <h2>How to play</h2>
-        <ul>
-          <li>Change <strong>one letter</strong> at a time to turn the start word into the target word.</li>
-          <li>Every step must be a real word of the same length.</li>
-          <li>Reach the target in as few moves as possible.</li>
-          <li>Stuck? Use a hint — it costs nothing but your pride.</li>
-        </ul>
-      </section>
+      <aside class="side">
+        <section class="rules-card">
+          <h2>How to play</h2>
+          <ul>
+            <li>Change <strong>one letter</strong> at a time to turn the start word into the target word.</li>
+            <li>Every step must be a real word of the same length.</li>
+            <li>Green tiles already match the target's letter in that spot.</li>
+            <li>Reach the target in as few moves as possible.</li>
+            <li>Stuck? Use a hint — it costs nothing but your pride.</li>
+          </ul>
+        </section>
+
+        <section class="rules-card stats-card">
+          <h2>Your stats</h2>
+          <div class="stat-grid" id="statGrid"></div>
+        </section>
+      </aside>
     </main>
   </div>
 
@@ -67,7 +76,10 @@
       <div class="celebration-emoji" id="celebrationEmoji">🏆</div>
       <div class="celebration-text" id="celebrationText">Solved!</div>
       <div class="celebration-sub" id="celebrationSub"></div>
-      <button id="celebrationClose">Nice</button>
+      <div class="celebration-actions">
+        <button id="shareBtn" class="primary">🔗 Share result</button>
+        <button id="celebrationClose">Nice</button>
+      </div>
     </div>
   </div>
 

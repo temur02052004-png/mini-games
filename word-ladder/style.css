@@ -108,9 +108,14 @@ main {
 
 .rung.end .letter { border-color: var(--accent); background: rgba(110,255,160,0.08); }
 
+.rung .letter.match {
+  border-color: rgba(110,255,160,0.45);
+  background: rgba(110,255,160,0.12);
+}
+
 .rung .letter.changed {
   border-color: var(--accent);
-  background: rgba(110,255,160,0.15);
+  background: rgba(110,255,160,0.22);
   color: var(--accent);
 }
 
@@ -181,9 +186,34 @@ button:active { transform: scale(0.97); }
   padding-top: 14px;
 }
 
+.side { display: flex; flex-direction: column; gap: 20px; }
+
 .rules-card h2 { margin: 0 0 12px; font-size: 1.05rem; }
 .rules-card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
 .rules-card li { margin-bottom: 8px; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.stat {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: center;
+}
+.stat .value { font-size: 1.35rem; font-weight: 700; line-height: 1.1; }
+.stat .label { font-size: 0.68rem; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; margin-top: 3px; }
+
+.celebration-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.celebration-actions button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b1a10;
+  font-weight: 600;
+}
 
 .celebration {
   position: fixed;

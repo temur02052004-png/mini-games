@@ -1,9 +1,10 @@
 # Mini Games & Tools
 
-A small static site with two browser games/tools — no build step, no dependencies.
+A small static site of browser games — no build step, no dependencies.
 
-- **Word Ladder** (`word-ladder/`) — change one letter at a time to reach the target word. Daily puzzle + practice mode, hints, and streak tracking.
-- **Focus Sprint** (`focus-sprint/`) — a Pomodoro focus timer with a task list and daily streak.
+- **Word Ladder** (`word-ladder/`) — change one letter at a time to reach the target word. Daily puzzle + practice mode, hints, undo, shareable results, and stats.
+- **Chess** (`chess/`) — full two-player chess with every rule enforced (check, castling, en passant, promotion, checkmate/stalemate).
+- **Checkers** (`checkers/`) — two-player draughts with mandatory captures, multi-jumps, and king promotion.
 
 Everything is plain HTML/CSS/JS and stores progress in the browser's `localStorage`.
 
