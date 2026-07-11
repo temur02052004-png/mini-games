@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Idiom Match</title>
+<style>
+  :root {
+    --bg: #100d18; --card: #1a1626; --border: #2e2740;
+    --text: #ece8f5; --muted: #9a90b4;
+    --accent: #b18cff; --accent2: #7c5cff;
+    --good: #6effc0; --bad: #ff6b8a; --gold: #ffd166;
+    --idiom: #b18cff; --meaning: #5ec7ff;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(circle at 80% -10%, #241a3a 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .app { width: 100%; max-width: 640px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
+  .title-block { display: flex; flex-direction: column; gap: 3px; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); font-size: 0.82rem; }
+  .back { color: var(--muted); text-decoration: none; font-size: 0.8rem; border: 1px solid var(--border); background: var(--card); padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+  .back:hover { color: var(--text); border-color: var(--accent); }
+
+  .hud { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .stat .v { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+  .stat .l { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .stat.center { text-align: center; } .stat.right { text-align: right; }
+
+  .status { text-align: center; min-height: 2.6em; margin-bottom: 12px; font-size: 0.92rem; color: var(--muted); display: flex; align-items: center; justify-content: center; padding: 0 6px; }
+  .status b { color: var(--gold); }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (min-width: 520px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+
+  .cell { perspective: 800px; }
+  .cardface {
+    position: relative; width: 100%; aspect-ratio: 3 / 4; cursor: pointer;
+    transform-style: preserve-3d; transition: transform 0.4s cubic-bezier(.2,.8,.3,1.2);
+    border: none; background: none; padding: 0;
+  }
+  .cardface.up { transform: rotateY(180deg); }
+  .cardface.matched { cursor: default; }
+  .face {
+    position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    border-radius: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 8px; text-align: center; border: 1px solid var(--border);
+  }
+  .face .tag { position: absolute; top: 7px; left: 0; right: 0; font-size: 0.52rem; letter-spacing: 0.12em; text-transform: uppercase; }
+  .face .txt { font-size: 0.86rem; font-weight: 600; line-height: 1.25; }
+  @media (max-width: 400px) { .face .txt { font-size: 0.76rem; } }
+
+  .front {
+    background: radial-gradient(circle at 50% 30%, #2a2240, #1a1626);
+    color: var(--accent); font-size: 1.7rem;
+  }
+  .front .mark { font-size: 1.9rem; opacity: 0.85; }
+  .back-face {
+    transform: rotateY(180deg);
+    background: linear-gradient(180deg, #221b34, #191324);
+  }
+  .back-face.idiom { border-color: rgba(177,140,255,0.5); }
+  .back-face.idiom .tag { color: var(--idiom); }
+  .back-face.meaning { border-color: rgba(94,199,255,0.5); }
+  .back-face.meaning .tag { color: var(--meaning); }
+
+  .cardface.matched .face { border-color: var(--good); box-shadow: 0 0 0 1px var(--good) inset; }
+  .cardface.matched .back-face { background: linear-gradient(180deg, rgba(110,255,192,0.14), rgba(110,255,192,0.05)); }
+  .cardface.matched .back-face .txt { color: var(--good); }
+  .cardface.wrong .back-face { background: linear-gradient(180deg, rgba(255,107,138,0.16), rgba(255,107,138,0.05)); }
+
+  .overlay { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(6,4,12,0.76); backdrop-filter: blur(4px); }
+  .overlay.show { display: flex; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px 28px; text-align: center; max-width: 420px; width: 100%; animation: pop 0.3s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes pop { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .panel .emoji { font-size: 2.8rem; margin-bottom: 6px; }
+  .panel h2 { margin: 0 0 8px; font-size: 1.5rem; }
+  .panel p { margin: 0 0 6px; color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 18px 0; }
+  .result-grid .cell2 { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; padding: 12px 4px; }
+  .result-grid .v { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .result-grid .l { font-size: 0.58rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+  .btn { font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; background: var(--accent); border: 1px solid var(--accent); color: #1a0f36; border-radius: 12px; padding: 14px 26px; margin-top: 8px; width: 100%; transition: filter 0.15s, transform 0.08s; }
+  .btn:hover { filter: brightness(1.08); } .btn:active { transform: scale(0.97); }
+  .btn.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+  .legend { display: flex; gap: 16px; justify-content: center; margin-top: 14px; font-size: 0.72rem; color: var(--muted); }
+  .legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+  .legend .i::before { background: var(--idiom); } .legend .m::before { background: var(--meaning); }
+
+  @media (prefers-reduced-motion: reduce) { .cardface { transition: none; } *,*::before,*::after { animation-duration: 0.01ms !important; } }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-block">
+        <h1>🎴 Idiom Match</h1>
+        <span class="subtitle">Flip cards to pair each idiom with what it really means.</span>
+      </div>
+      <a class="back" href="../">← Games</a>
+    </header>
+
+    <div class="hud">
+      <div class="stat"><div class="v" id="moves">0</div><div class="l">Moves</div></div>
+      <div class="stat center"><div class="v" id="pairs">0 / 6</div><div class="l">Pairs found</div></div>
+      <div class="stat right"><div class="v" id="best">—</div><div class="l">Best moves</div></div>
+    </div>
+
+    <div class="status" id="status">Match all six pairs. Fewer moves is better!</div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="legend"><span class="i">idiom</span><span class="m">meaning</span></div>
+  </div>
+
+  <div class="overlay show" id="startOverlay">
+    <div class="panel">
+      <div class="emoji">🎴</div>
+      <h2>Idiom Match</h2>
+      <p>Twelve cards, six idioms. Flip two at a time to pair each <b style="color:var(--idiom)">idiom</b> with its <b style="color:var(--meaning)">meaning</b>.</p>
+      <p>Every match shows a real example sentence, so you learn the phrase as you play. Try to clear the board in as few moves as you can.</p>
+      <button class="btn" id="startBtn">Start</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="endOverlay">
+    <div class="panel">
+      <div class="emoji" id="endEmoji">🏆</div>
+      <h2 id="endTitle">Board cleared!</h2>
+      <p id="endMsg"></p>
+      <div class="result-grid">
+        <div class="cell2"><div class="v" id="rMoves">0</div><div class="l">Moves</div></div>
+        <div class="cell2"><div class="v" id="rTime">0s</div><div class="l">Time</div></div>
+        <div class="cell2"><div class="v" id="rBest">0</div><div class="l">Best</div></div>
+      </div>
+      <button class="btn" id="againBtn">New board</button>
+      <button class="btn ghost" id="homeBtn">Back to games</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+    const IDIOMS = [
+      { i: "Piece of cake", m: "Very easy", ex: "The exam was a piece of cake — I finished early." },
+      { i: "Break the ice", m: "Start a conversation", ex: "He told a joke to break the ice with the new team." },
+      { i: "Hit the books", m: "Study hard", ex: "Finals are near, so I need to hit the books." },
+      { i: "Under the weather", m: "Feeling ill", ex: "She stayed home because she felt under the weather." },
+      { i: "Once in a blue moon", m: "Very rarely", ex: "We only eat out once in a blue moon." },
+      { i: "Cost an arm and a leg", m: "Very expensive", ex: "That new phone costs an arm and a leg." },
+      { i: "Spill the beans", m: "Reveal a secret", ex: "Come on, spill the beans — what did she say?" },
+      { i: "Bite the bullet", m: "Face something hard", ex: "I bit the bullet and finally booked the dentist." },
+      { i: "Hit the sack", m: "Go to bed", ex: "I'm exhausted; I'm going to hit the sack." },
+      { i: "On cloud nine", m: "Extremely happy", ex: "She was on cloud nine after the good news." },
+      { i: "Call it a day", m: "Stop working", ex: "We've done enough — let's call it a day." },
+      { i: "Pull your leg", m: "Tell a joke", ex: "Relax, I'm just pulling your leg!" },
+      { i: "The ball is in your court", m: "Your decision now", ex: "I've made my offer; the ball is in your court." },
+      { i: "Miss the boat", m: "Miss the chance", ex: "Buy tickets now or you'll miss the boat." },
+      { i: "Break a leg", m: "Good luck!", ex: "Break a leg in your performance tonight!" },
+      { i: "Hit the nail on the head", m: "Be exactly right", ex: "You hit the nail on the head with that answer." },
+      { i: "A blessing in disguise", m: "A hidden benefit", ex: "Missing the train was a blessing in disguise." },
+      { i: "Get cold feet", m: "Lose your nerve", ex: "He got cold feet before the big speech." }
+    ];
+
+    const el = (id) => document.getElementById(id);
+    const els = {
+      moves: el("moves"), pairs: el("pairs"), best: el("best"), status: el("status"), grid: el("grid"),
+      startOverlay: el("startOverlay"), endOverlay: el("endOverlay"),
+      startBtn: el("startBtn"), againBtn: el("againBtn"), homeBtn: el("homeBtn"),
+      endEmoji: el("endEmoji"), endTitle: el("endTitle"), endMsg: el("endMsg"),
+      rMoves: el("rMoves"), rTime: el("rTime"), rBest: el("rBest"),
+    };
+
+    const PAIRS = 6;
+    let deck, flipped, matched, moves, lock, startTime;
+    let best = localStorage.getItem("idiomBest");
+    els.best.textContent = best ? best : "—";
+
+    function shuffle(a) { a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+    function newGame() {
+      const chosen = shuffle(IDIOMS).slice(0, PAIRS);
+      deck = [];
+      chosen.forEach((it, p) => {
+        deck.push({ pair: p, type: "idiom", text: it.i, ex: it.ex });
+        deck.push({ pair: p, type: "meaning", text: it.m, ex: it.ex });
+      });
+      deck = shuffle(deck);
+      flipped = []; matched = new Set(); moves = 0; lock = false; startTime = Date.now();
+      els.moves.textContent = 0; els.pairs.textContent = "0 / " + PAIRS;
+      els.status.innerHTML = "Match all six pairs. Fewer moves is better!";
+      els.startOverlay.classList.remove("show");
+      els.endOverlay.classList.remove("show");
+      render();
+    }
+
+    function render() {
+      els.grid.innerHTML = "";
+      deck.forEach((c, idx) => {
+        const cell = document.createElement("div"); cell.className = "cell";
+        const cf = document.createElement("button");
+        cf.className = "cardface"; cf.type = "button"; cf.dataset.idx = idx;
+        cf.innerHTML =
+          `<div class="face front"><span class="mark">🎴</span></div>` +
+          `<div class="face back-face ${c.type}"><span class="tag">${c.type}</span><span class="txt">${c.text}</span></div>`;
+        cf.addEventListener("click", () => flip(idx, cf));
+        cell.appendChild(cf); els.grid.appendChild(cell);
+      });
+    }
+
+    function flip(idx, cf) {
+      if (lock || matched.has(idx) || flipped.some((f) => f.idx === idx)) return;
+      cf.classList.add("up");
+      flipped.push({ idx, cf });
+      if (flipped.length === 2) {
+        moves++; els.moves.textContent = moves;
+        lock = true;
+        const [a, b] = flipped;
+        if (deck[a.idx].pair === deck[b.idx].pair) {
+          setTimeout(() => matchPair(a, b), 380);
+        } else {
+          a.cf.classList.add("wrong"); b.cf.classList.add("wrong");
+          setTimeout(() => {
+            a.cf.classList.remove("up", "wrong"); b.cf.classList.remove("up", "wrong");
+            flipped = []; lock = false;
+          }, 950);
+        }
+      }
+    }
+
+    function matchPair(a, b) {
+      matched.add(a.idx); matched.add(b.idx);
+      a.cf.classList.add("matched"); b.cf.classList.add("matched");
+      flipped = []; lock = false;
+      const found = matched.size / 2;
+      els.pairs.textContent = found + " / " + PAIRS;
+      const ex = deck[a.idx].ex;
+      const idiom = deck[a.idx].type === "idiom" ? deck[a.idx].text : deck[b.idx].text;
+      els.status.innerHTML = `<span><b>${idiom}</b> — “${ex}”</span>`;
+      if (found === PAIRS) setTimeout(endGame, 700);
+    }
+
+    function endGame() {
+      const secs = Math.round((Date.now() - startTime) / 1000);
+      let isBest = false;
+      if (!best || moves < +best) { best = moves; localStorage.setItem("idiomBest", moves); isBest = true; }
+      els.best.textContent = best;
+      const perfect = moves === PAIRS;
+      els.endEmoji.textContent = perfect ? "🌟" : isBest ? "🏆" : "🎉";
+      els.endTitle.textContent = perfect ? "Perfect memory!" : "Board cleared!";
+      els.endMsg.textContent = perfect
+        ? `Flawless — six pairs in the minimum ${moves} moves!`
+        : `You matched all six pairs in ${moves} moves${isBest ? " — a new best!" : "."}`;
+      els.rMoves.textContent = moves;
+      els.rTime.textContent = secs + "s";
+      els.rBest.textContent = best;
+      els.endOverlay.classList.add("show");
+    }
+
+    els.startBtn.addEventListener("click", newGame);
+    els.againBtn.addEventListener("click", newGame);
+    els.homeBtn.addEventListener("click", () => (location.href = "../"));
+  })();
+  </script>
+</body>
+</html>

@@ -15,52 +15,127 @@
     background: radial-gradient(circle at 50% 0%, #1c2030 0%, var(--bg) 55%);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    display: flex; align-items: center; justify-content: center; padding: 24px;
+    display: flex; align-items: flex-start; justify-content: center; padding: 40px 24px;
   }
-  .wrap { width: 100%; max-width: 720px; text-align: center; }
+  .wrap { width: 100%; max-width: 780px; }
+  .head { text-align: center; margin-bottom: 36px; }
   h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -0.02em; }
-  .sub { color: var(--muted); margin-bottom: 32px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .sub { color: var(--muted); }
+
+  section { margin-bottom: 34px; }
+  .sec-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .sec-head h2 { font-size: 1.1rem; margin: 0; letter-spacing: -0.01em; }
+  .sec-head .tag { font-size: 0.72rem; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
   a.card {
     display: block; text-decoration: none; color: inherit;
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 18px; padding: 28px 24px; text-align: left;
+    border-radius: 16px; padding: 22px 20px; text-align: left;
     transition: border-color 0.15s ease, transform 0.1s ease;
   }
-  a.card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .emoji { font-size: 2.2rem; margin-bottom: 12px; }
-  .card h2 { margin: 0 0 6px; font-size: 1.2rem; }
-  .card p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
-  footer { margin-top: 32px; color: var(--muted); font-size: 0.8rem; }
+  a.card:hover { border-color: var(--hue, var(--accent)); transform: translateY(-2px); }
+  .emoji { font-size: 2rem; margin-bottom: 10px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.1rem; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+
+  .feedback-card {
+    background: linear-gradient(135deg, rgba(94,201,255,0.08), rgba(110,255,160,0.06));
+    border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; text-align: center; margin-bottom: 28px;
+  }
+  .feedback-card h2 { margin: 0 0 6px; font-size: 1.15rem; }
+  .feedback-card p { margin: 0 0 16px; color: var(--muted); font-size: 0.9rem; }
+  .feedback-btn {
+    display: inline-block; text-decoration: none;
+    background: var(--accent); color: #06210f; font-weight: 700;
+    padding: 12px 24px; border-radius: 10px; font-size: 0.95rem;
+    transition: filter 0.15s, transform 0.08s;
+  }
+  .feedback-btn:hover { filter: brightness(1.08); }
+  .feedback-btn:active { transform: scale(0.97); }
+
+  footer { margin-top: 12px; color: var(--muted); font-size: 0.8rem; text-align: center; }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Mini Games &amp; Tools</h1>
-    <div class="sub">A little collection — pick one and play.</div>
-    <div class="grid">
-      <a class="card" href="word-ladder/">
-        <div class="emoji">🪜</div>
-        <h2>Word Ladder</h2>
-        <p>Change one letter at a time to get from the start word to the target. Daily puzzle + practice mode.</p>
-      </a>
-      <a class="card" href="chess/">
-        <div class="emoji">♟️</div>
-        <h2>Chess</h2>
-        <p>Full two-player chess with every rule enforced — check, castling, en passant, promotion, and checkmate.</p>
-      </a>
-      <a class="card" href="checkers/">
-        <div class="emoji">🔴</div>
-        <h2>Checkers</h2>
-        <p>Two-player draughts with mandatory captures, multi-jumps, and king promotion.</p>
-      </a>
-      <a class="card" href="doodle/">
-        <div class="emoji">🎨</div>
-        <h2>Generative Doodle Pad</h2>
-        <p>Draw and watch your strokes bloom into kaleidoscope art — symmetry mirroring, color-shifting brushes, and glowing particle trails.</p>
-      </a>
+    <div class="head">
+      <h1>Mini Games &amp; Tools</h1>
+      <div class="sub">A little collection — pick one and play.</div>
     </div>
+
+    <section>
+      <div class="sec-head"><h2>📚 Learning English</h2><span class="tag">Vocabulary · grammar · listening</span></div>
+      <div class="grid">
+        <a class="card" href="word-ladder/" style="--hue:#6effa0">
+          <div class="emoji">🪜</div>
+          <h3>Word Ladder</h3>
+          <p>Change one letter at a time to get from the start word to the target. Daily puzzle, plus 4- and 5-letter modes.</p>
+        </a>
+        <a class="card" href="word-bloom/" style="--hue:#ffb347">
+          <div class="emoji">🌸</div>
+          <h3>Word Bloom</h3>
+          <p>Build as many words as you can from seven letters before the clock runs out — and find the hidden 7-letter bloom.</p>
+        </a>
+        <a class="card" href="homophone-hero/" style="--hue:#7c9bff">
+          <div class="emoji">⚡</div>
+          <h3>Homophone Hero</h3>
+          <p>Pick the right word — there/their/they're, your/you're, its/it's — against the clock, and build a combo.</p>
+        </a>
+        <a class="card" href="sentence-scramble/" style="--hue:#35d0a0">
+          <div class="emoji">🧩</div>
+          <h3>Sentence Scramble</h3>
+          <p>Drag the shuffled words back into a grammatical sentence, from easy warm-ups to trickier clauses.</p>
+        </a>
+        <a class="card" href="idiom-match/" style="--hue:#b18cff">
+          <div class="emoji">🎴</div>
+          <h3>Idiom Match</h3>
+          <p>Flip cards to pair each idiom with its meaning — with a real example sentence on every match.</p>
+        </a>
+        <a class="card" href="listening-lab/" style="--hue:#ff6fae">
+          <div class="emoji">🎧</div>
+          <h3>Listening Lab</h3>
+          <p>Hear a word or sentence spoken aloud and type exactly what you hear. Great dictation practice.</p>
+        </a>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>🧠 Mind Games</h2><span class="tag">Two-player strategy</span></div>
+      <div class="grid">
+        <a class="card" href="chess/" style="--hue:#5ec9ff">
+          <div class="emoji">♟️</div>
+          <h3>Chess</h3>
+          <p>Full two-player chess with every rule enforced — check, castling, en passant, promotion, and checkmate.</p>
+        </a>
+        <a class="card" href="checkers/" style="--hue:#ff6b5e">
+          <div class="emoji">🔴</div>
+          <h3>Checkers</h3>
+          <p>Two-player draughts with mandatory captures, multi-jumps, and king promotion.</p>
+        </a>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>🎨 Creative</h2><span class="tag">Make something</span></div>
+      <div class="grid">
+        <a class="card" href="doodle/" style="--hue:#6effa0">
+          <div class="emoji">🎨</div>
+          <h3>Generative Doodle Pad</h3>
+          <p>Draw and watch your strokes bloom into kaleidoscope art — symmetry mirroring, color-shifting brushes, and glowing particle trails.</p>
+        </a>
+      </div>
+    </section>
+
+    <div class="feedback-card">
+      <h2>💬 Got feedback?</h2>
+      <p>Found a bug, or have an idea for a new game? I'd love to hear it.</p>
+      <a class="feedback-btn" href="mailto:temur02.05.2004@gmail.com?subject=Mini%20Games%20feedback&body=Hi%20Temur%2C%0D%0A%0D%0AHere's%20my%20feedback%20on%20the%20games%3A%0D%0A%0D%0A(what%20I%20liked%20%2F%20what%20could%20be%20better%20%2F%20ideas)%0D%0A">Send feedback</a>
+    </div>
+
     <footer>Built for fun · works on any modern browser</footer>
   </div>
 </body>

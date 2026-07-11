@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Homophone Hero</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #171a21; --border: #262b35;
+    --text: #e8eaed; --muted: #8b93a1;
+    --accent: #7c9bff; --accent2: #5ec9ff;
+    --good: #6effa0; --bad: #ff6b6b; --gold: #ffd166;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(circle at 80% -10%, #1d2440 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .app { width: 100%; max-width: 620px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; }
+  .title-block { display: flex; flex-direction: column; gap: 3px; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+  .subtitle { color: var(--muted); font-size: 0.82rem; }
+  .back { color: var(--muted); text-decoration: none; font-size: 0.8rem; border: 1px solid var(--border); background: var(--card); padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+  .back:hover { color: var(--text); border-color: var(--accent); }
+
+  .hud { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .lives { font-size: 1.1rem; letter-spacing: 2px; }
+  .score-box { text-align: right; }
+  .score-box .score { font-size: 1.5rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .score-box .label { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .combo { font-size: 0.85rem; font-weight: 700; color: var(--gold); min-height: 1.2em; }
+
+  .timer { height: 6px; border-radius: 999px; background: #2a3040; overflow: hidden; margin-bottom: 18px; }
+  .timer-fill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width 0.1s linear; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 30px 26px;
+  }
+
+  .qcount { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .sentence { font-size: 1.5rem; line-height: 1.5; font-weight: 500; margin-bottom: 26px; text-wrap: balance; }
+  .blank {
+    display: inline-block; min-width: 3.2em; border-bottom: 3px solid var(--accent);
+    text-align: center; color: var(--accent); font-weight: 800; padding: 0 6px;
+  }
+  .blank.good { color: var(--good); border-color: var(--good); }
+  .blank.bad { color: var(--bad); border-color: var(--bad); }
+
+  .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+  .opt {
+    font: inherit; font-size: 1.15rem; font-weight: 700; color: var(--text);
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 12px; cursor: pointer;
+    transition: transform 0.08s, background 0.15s, border-color 0.15s;
+    position: relative;
+  }
+  .opt .key { position: absolute; top: 6px; left: 8px; font-size: 0.6rem; color: var(--muted); font-weight: 600; }
+  .opt:hover:not(:disabled) { background: rgba(124,155,255,0.12); border-color: var(--accent); }
+  .opt:active:not(:disabled) { transform: scale(0.97); }
+  .opt.good { background: rgba(110,255,160,0.16); border-color: var(--good); color: var(--good); }
+  .opt.bad { background: rgba(255,107,107,0.16); border-color: var(--bad); color: var(--bad); }
+  .opt:disabled { cursor: default; }
+
+  .tip { min-height: 1.5em; margin-top: 18px; font-size: 0.9rem; color: var(--muted); text-align: center; }
+  .tip b { color: var(--text); }
+
+  .float { position: fixed; pointer-events: none; font-weight: 800; font-size: 1.4rem; color: var(--good); z-index: 20; animation: floatUp 0.9s ease-out forwards; }
+  @keyframes floatUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-46px); } }
+
+  /* start / end overlay */
+  .overlay {
+    position: fixed; inset: 0; z-index: 30; display: none;
+    align-items: center; justify-content: center; padding: 24px;
+    background: rgba(8,10,14,0.72); backdrop-filter: blur(4px);
+  }
+  .overlay.show { display: flex; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 36px 32px; text-align: center; max-width: 400px; width: 100%;
+    animation: pop 0.3s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .panel .emoji { font-size: 3rem; margin-bottom: 8px; }
+  .panel h2 { margin: 0 0 8px; font-size: 1.5rem; }
+  .panel p { margin: 0 0 8px; color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 20px 0; }
+  .result-grid .cell { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; padding: 12px 6px; }
+  .result-grid .v { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .result-grid .l { font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+  .btn {
+    font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer;
+    background: var(--accent); border: 1px solid var(--accent); color: #08122e;
+    border-radius: 12px; padding: 14px 26px; margin-top: 8px; width: 100%;
+    transition: transform 0.08s, filter 0.15s;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: scale(0.97); }
+
+  @media (max-width: 480px) {
+    .sentence { font-size: 1.25rem; }
+    .card { padding: 24px 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-block">
+        <h1>⚡ Homophone Hero</h1>
+        <span class="subtitle">Pick the right word — beat the words English learners mix up most.</span>
+      </div>
+      <a class="back" href="../">← Games</a>
+    </header>
+
+    <div class="hud">
+      <div>
+        <div class="lives" id="lives">❤️❤️❤️</div>
+        <div class="combo" id="combo"></div>
+      </div>
+      <div class="score-box">
+        <div class="score" id="score">0</div>
+        <div class="label">Score · Best <span id="best">0</span></div>
+      </div>
+    </div>
+
+    <div class="timer"><div class="timer-fill" id="timerFill"></div></div>
+
+    <div class="card">
+      <div class="qcount" id="qcount">Question 1</div>
+      <div class="sentence" id="sentence"></div>
+      <div class="options" id="options"></div>
+      <div class="tip" id="tip"></div>
+    </div>
+  </div>
+
+  <!-- start screen -->
+  <div class="overlay show" id="startOverlay">
+    <div class="panel">
+      <div class="emoji">⚡</div>
+      <h2>Homophone Hero</h2>
+      <p>A word is missing from each sentence. Tap the version that fits — <b>there</b> vs <b>their</b> vs <b>they're</b>, <b>your</b> vs <b>you're</b>, and more.</p>
+      <p>Answer fast for bonus points, build a combo, and don't lose your three hearts. Keys <b>1·2·3</b> work too.</p>
+      <button class="btn" id="startBtn">Start</button>
+    </div>
+  </div>
+
+  <!-- end screen -->
+  <div class="overlay" id="endOverlay">
+    <div class="panel">
+      <div class="emoji" id="endEmoji">🏆</div>
+      <h2 id="endTitle">Nice run!</h2>
+      <p id="endMsg"></p>
+      <div class="result-grid">
+        <div class="cell"><div class="v" id="rScore">0</div><div class="l">Score</div></div>
+        <div class="cell"><div class="v" id="rAcc">0%</div><div class="l">Accuracy</div></div>
+        <div class="cell"><div class="v" id="rStreak">0</div><div class="l">Best combo</div></div>
+      </div>
+      <button class="btn" id="againBtn">Play again</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ── question bank ─────────────────────────────────────────────────────────
+  // each: sentence (with ___), options (lowercase set), answer, tip
+  const BANK = [
+    { s: "I left my keys over ___ on the table.", o: ["there","their","they're"], a: "there", t: "<b>there</b> points to a place." },
+    { s: "The students finished ___ homework early.", o: ["there","their","they're"], a: "their", t: "<b>their</b> shows belonging — the homework of them." },
+    { s: "I think ___ going to love this game.", o: ["there","their","they're"], a: "they're", t: "<b>they're</b> = they are." },
+    { s: "___ are three cats in the garden.", o: ["There","Their","They're"], a: "There", t: "<b>There are…</b> talks about what exists." },
+    { s: "The team celebrated ___ big win.", o: ["there","their","they're"], a: "their", t: "<b>their</b> = belonging to them." },
+    { s: "Call me when ___ ready to leave.", o: ["there","their","they're"], a: "they're", t: "<b>they're</b> = they are ready." },
+
+    { s: "___ going to do great on the test.", o: ["Your","You're"], a: "You're", t: "<b>You're</b> = you are." },
+    { s: "Is this ___ backpack?", o: ["your","you're"], a: "your", t: "<b>your</b> shows it belongs to you." },
+    { s: "I really love ___ new haircut.", o: ["your","you're"], a: "your", t: "<b>your</b> = belonging to you." },
+    { s: "___ the best teacher I've ever had.", o: ["Your","You're"], a: "You're", t: "<b>You're</b> = you are." },
+
+    { s: "The dog wagged ___ tail happily.", o: ["its","it's"], a: "its", t: "<b>its</b> shows belonging — no apostrophe." },
+    { s: "___ raining outside again.", o: ["Its","It's"], a: "It's", t: "<b>It's</b> = it is." },
+    { s: "The company changed ___ logo.", o: ["its","it's"], a: "its", t: "<b>its</b> = belonging to it." },
+    { s: "I think ___ going to be a great day.", o: ["its","it's"], a: "it's", t: "<b>it's</b> = it is." },
+
+    { s: "I'm going ___ the store later.", o: ["to","too","two"], a: "to", t: "<b>to</b> shows direction or an action." },
+    { s: "Can I come along ___?", o: ["to","too","two"], a: "too", t: "<b>too</b> = also / as well." },
+    { s: "She bought ___ tickets for the show.", o: ["to","too","two"], a: "two", t: "<b>two</b> is the number 2." },
+    { s: "This soup is ___ hot to eat.", o: ["to","too","two"], a: "too", t: "<b>too</b> = more than enough." },
+    { s: "Give the book ___ your brother.", o: ["to","too","two"], a: "to", t: "<b>to</b> shows where it goes." },
+
+    { s: "She is taller ___ her sister.", o: ["then","than"], a: "than", t: "<b>than</b> is used to compare." },
+    { s: "We ate dinner and ___ watched a film.", o: ["then","than"], a: "then", t: "<b>then</b> = next in time." },
+    { s: "I'd rather walk ___ take the bus.", o: ["then","than"], a: "than", t: "<b>than</b> compares two choices." },
+    { s: "First mix the flour, ___ add the eggs.", o: ["then","than"], a: "then", t: "<b>then</b> shows the next step." },
+
+    { s: "Loud music can ___ how well you focus.", o: ["affect","effect"], a: "affect", t: "<b>affect</b> is the verb — to influence." },
+    { s: "The new rule had a big ___ on prices.", o: ["affect","effect"], a: "effect", t: "<b>effect</b> is the noun — the result." },
+
+    { s: "Be careful not to ___ your ticket.", o: ["lose","loose"], a: "lose", t: "<b>lose</b> = misplace or not win." },
+    { s: "This screw is ___ and needs tightening.", o: ["lose","loose"], a: "loose", t: "<b>loose</b> = not tight." },
+
+    { s: "___ car is parked outside?", o: ["Whose","Who's"], a: "Whose", t: "<b>Whose</b> asks who something belongs to." },
+    { s: "Do you know ___ coming to the party?", o: ["whose","who's"], a: "who's", t: "<b>who's</b> = who is." },
+
+    { s: "The ___ is lovely and sunny today.", o: ["weather","whether"], a: "weather", t: "<b>weather</b> is rain, sun, wind…" },
+    { s: "I can't decide ___ to stay or go.", o: ["weather","whether"], a: "whether", t: "<b>whether</b> introduces a choice." },
+
+    { s: "Did you ___ that strange noise?", o: ["hear","here"], a: "hear", t: "<b>hear</b> is what your ears do." },
+    { s: "Please put your bag ___.", o: ["hear","here"], a: "here", t: "<b>here</b> means this place." },
+
+    { s: "Let's take a short ___ before we continue.", o: ["break","brake"], a: "break", t: "<b>break</b> = a pause or rest." },
+    { s: "Press the ___ to slow the car down.", o: ["break","brake"], a: "brake", t: "<b>brake</b> stops a vehicle." },
+
+    { s: "Can I have a ___ of cake?", o: ["piece","peace"], a: "piece", t: "<b>piece</b> = a part of something." },
+    { s: "The two nations finally signed a ___ treaty.", o: ["piece","peace"], a: "peace", t: "<b>peace</b> = no war, calm." },
+
+    { s: "I need to ___ some milk on the way home.", o: ["buy","by"], a: "buy", t: "<b>buy</b> = to purchase." },
+    { s: "This novel was written ___ a famous author.", o: ["buy","by"], a: "by", t: "<b>by</b> shows who did it." },
+
+    { s: "Everyone came to the party ___ Tom.", o: ["accept","except"], a: "except", t: "<b>except</b> = not including." },
+    { s: "Please ___ my sincere apology.", o: ["accept","except"], a: "accept", t: "<b>accept</b> = to receive or agree." },
+
+    { s: "We watched the sun set over the ___.", o: ["sea","see"], a: "sea", t: "<b>sea</b> is the ocean." },
+    { s: "From the hill you can ___ the whole city.", o: ["sea","see"], a: "see", t: "<b>see</b> is what your eyes do." },
+
+    { s: "He ate the ___ apple in one bite.", o: ["whole","hole"], a: "whole", t: "<b>whole</b> = complete, entire." },
+    { s: "There's a ___ in my sock.", o: ["whole","hole"], a: "hole", t: "<b>hole</b> = an opening or gap." }
+  ];
+
+  // ── config ────────────────────────────────────────────────────────────────
+  const LIVES = 3;
+  const QTIME = 8000;        // ms per question
+  const BASE = 10;
+  const ROUND_LEN = 15;      // questions per game
+
+  // ── state ─────────────────────────────────────────────────────────────────
+  let queue = [], qi = 0, score = 0, lives = LIVES, combo = 0, bestCombo = 0;
+  let correctCount = 0, answeredCount = 0;
+  let timer = null, tRemaining = 0, locked = true;
+  let best = +(localStorage.getItem("homophoneBest") || 0);
+
+  const el = (id) => document.getElementById(id);
+  const els = {
+    lives: el("lives"), combo: el("combo"), score: el("score"), best: el("best"),
+    timerFill: el("timerFill"), qcount: el("qcount"), sentence: el("sentence"),
+    options: el("options"), tip: el("tip"),
+    startOverlay: el("startOverlay"), endOverlay: el("endOverlay"),
+    startBtn: el("startBtn"), againBtn: el("againBtn"),
+    endEmoji: el("endEmoji"), endTitle: el("endTitle"), endMsg: el("endMsg"),
+    rScore: el("rScore"), rAcc: el("rAcc"), rStreak: el("rStreak"),
+  };
+  els.best.textContent = best;
+
+  function shuffle(a) {
+    a = a.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // ── game flow ─────────────────────────────────────────────────────────────
+  function startGame() {
+    queue = shuffle(BANK).slice(0, ROUND_LEN);
+    qi = 0; score = 0; lives = LIVES; combo = 0; bestCombo = 0;
+    correctCount = 0; answeredCount = 0;
+    els.startOverlay.classList.remove("show");
+    els.endOverlay.classList.remove("show");
+    renderHud();
+    nextQuestion();
+  }
+
+  function renderHud() {
+    els.lives.textContent = "❤️".repeat(lives) + "🖤".repeat(LIVES - lives);
+    els.score.textContent = score;
+    els.combo.textContent = combo >= 2 ? `🔥 Combo ×${combo}` : "";
+  }
+
+  function nextQuestion() {
+    if (qi >= queue.length || lives <= 0) return endGame();
+    const q = queue[qi];
+    locked = false;
+    els.qcount.textContent = `Question ${qi + 1} of ${queue.length}`;
+    els.tip.innerHTML = "";
+    els.sentence.innerHTML = q.s.replace("___", `<span class="blank" id="blank">?</span>`);
+
+    const opts = shuffle(q.o);
+    els.options.innerHTML = "";
+    opts.forEach((word, i) => {
+      const b = document.createElement("button");
+      b.className = "opt";
+      b.innerHTML = `<span class="key">${i + 1}</span>${word}`;
+      b.dataset.word = word;
+      b.addEventListener("click", () => choose(word, b));
+      els.options.appendChild(b);
+    });
+
+    startTimer();
+  }
+
+  function startTimer() {
+    clearInterval(timer);
+    tRemaining = QTIME;
+    els.timerFill.style.width = "100%";
+    const tick = 50;
+    timer = setInterval(() => {
+      tRemaining -= tick;
+      const frac = Math.max(0, tRemaining / QTIME);
+      els.timerFill.style.width = (frac * 100) + "%";
+      if (tRemaining <= 0) {
+        clearInterval(timer);
+        timeUp();
+      }
+    }, tick);
+  }
+
+  function choose(word, btn) {
+    if (locked) return;
+    locked = true;
+    clearInterval(timer);
+    const q = queue[qi];
+    answeredCount++;
+    const blank = document.getElementById("blank");
+    const correct = word.toLowerCase() === q.a.toLowerCase();
+
+    // disable all, reveal
+    [...els.options.children].forEach((b) => {
+      b.disabled = true;
+      if (b.dataset.word.toLowerCase() === q.a.toLowerCase()) b.classList.add("good");
+    });
+
+    if (correct) {
+      correctCount++;
+      combo++;
+      bestCombo = Math.max(bestCombo, combo);
+      const timeBonus = Math.round((tRemaining / QTIME) * 10);
+      const mult = 1 + (combo - 1) * 0.5;
+      const gained = Math.round((BASE + timeBonus) * mult);
+      score += gained;
+      blank.textContent = q.a; blank.classList.add("good");
+      floatText(btn, "+" + gained, "var(--good)");
+      ping(true);
+    } else {
+      btn.classList.add("bad");
+      combo = 0;
+      lives--;
+      blank.textContent = q.a; blank.classList.add("bad");
+      ping(false);
+    }
+    els.tip.innerHTML = q.t;
+    if (score > best) { best = score; localStorage.setItem("homophoneBest", best); els.best.textContent = best; }
+    renderHud();
+    qi++;
+    setTimeout(nextQuestion, correct ? 900 : 1600);
+  }
+
+  function timeUp() {
+    if (locked) return;
+    locked = true;
+    const q = queue[qi];
+    answeredCount++;
+    combo = 0; lives--;
+    const blank = document.getElementById("blank");
+    [...els.options.children].forEach((b) => {
+      b.disabled = true;
+      if (b.dataset.word.toLowerCase() === q.a.toLowerCase()) b.classList.add("good");
+    });
+    if (blank) { blank.textContent = q.a; blank.classList.add("bad"); }
+    els.tip.innerHTML = "⏳ Out of time! " + q.t;
+    ping(false);
+    renderHud();
+    qi++;
+    setTimeout(nextQuestion, 1600);
+  }
+
+  function endGame() {
+    clearInterval(timer);
+    const acc = answeredCount ? Math.round((correctCount / answeredCount) * 100) : 0;
+    const survived = lives > 0;
+    els.endEmoji.textContent = survived ? (acc === 100 ? "🌟" : "🏆") : "💥";
+    els.endTitle.textContent = survived
+      ? (acc === 100 ? "Flawless!" : "Round complete!")
+      : "Out of hearts!";
+    els.endMsg.textContent = survived
+      ? `You answered ${correctCount} of ${answeredCount} correctly.`
+      : `You made it through ${answeredCount} question${answeredCount === 1 ? "" : "s"}. Keep going!`;
+    els.rScore.textContent = score;
+    els.rAcc.textContent = acc + "%";
+    els.rStreak.textContent = "×" + Math.max(1, bestCombo);
+    els.endOverlay.classList.add("show");
+  }
+
+  // ── feedback fx ───────────────────────────────────────────────────────────
+  function floatText(anchor, text, color) {
+    const r = anchor.getBoundingClientRect();
+    const f = document.createElement("div");
+    f.className = "float"; f.textContent = text; f.style.color = color;
+    f.style.left = (r.left + r.width / 2 - 16) + "px";
+    f.style.top = (r.top - 10) + "px";
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 900);
+  }
+
+  function ping(good) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const now = ctx.currentTime;
+      const notes = good ? [660, 880] : [220, 160];
+      notes.forEach((f, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = good ? "sine" : "sawtooth";
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, now + i * 0.08);
+        g.gain.exponentialRampToValueAtTime(0.14, now + i * 0.08 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.08 + 0.22);
+        o.connect(g).connect(ctx.destination);
+        o.start(now + i * 0.08); o.stop(now + i * 0.08 + 0.25);
+      });
+    } catch {}
+  }
+
+  // ── input ─────────────────────────────────────────────────────────────────
+  window.addEventListener("keydown", (e) => {
+    if (locked) return;
+    const n = parseInt(e.key);
+    if (n >= 1 && n <= els.options.children.length) {
+      const b = els.options.children[n - 1];
+      choose(b.dataset.word, b);
+    }
+  });
+
+  els.startBtn.addEventListener("click", startGame);
+  els.againBtn.addEventListener("click", startGame);
+})();
+</script>
+</body>
+</html>

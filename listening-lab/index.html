@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Listening Lab</title>
+<style>
+  :root {
+    --bg: #150d12; --card: #221420; --border: #3a2331;
+    --text: #f5e9f0; --muted: #b592a6;
+    --accent: #ff6fae; --accent2: #ff9f68;
+    --good: #6effa0; --bad: #ff6b6b; --gold: #ffd166;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(circle at 75% -10%, #3a1a2c 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .app { width: 100%; max-width: 600px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
+  .title-block { display: flex; flex-direction: column; gap: 3px; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); font-size: 0.82rem; }
+  .back { color: var(--muted); text-decoration: none; font-size: 0.8rem; border: 1px solid var(--border); background: var(--card); padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+  .back:hover { color: var(--text); border-color: var(--accent); }
+
+  .hud { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .stat .v { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+  .stat .l { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .stat.center { text-align: center; } .stat.right { text-align: right; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px 22px; }
+  .kind-label { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; text-align: center; }
+
+  .play-row { display: flex; gap: 12px; justify-content: center; margin-bottom: 8px; }
+  .play {
+    font: inherit; font-weight: 700; cursor: pointer; color: #2a0f1c;
+    background: linear-gradient(180deg, var(--accent), #ff5c9e); border: none;
+    border-radius: 14px; padding: 16px 26px; font-size: 1.05rem;
+    display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 16px rgba(255,111,174,0.3);
+    transition: transform 0.08s, filter 0.15s;
+  }
+  .play:hover { filter: brightness(1.06); } .play:active { transform: scale(0.97); }
+  .play.speaking { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 4px 16px rgba(255,111,174,0.3); } 50% { box-shadow: 0 4px 26px rgba(255,111,174,0.65); } }
+  .slow {
+    font: inherit; font-weight: 600; cursor: pointer; color: var(--text);
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;
+    transition: background 0.15s, transform 0.08s;
+  }
+  .slow:hover { background: rgba(255,255,255,0.1); } .slow:active { transform: scale(0.96); }
+  .hint-text { text-align: center; color: var(--muted); font-size: 0.82rem; margin-bottom: 18px; }
+
+  .answer-form { display: flex; gap: 10px; margin-bottom: 6px; }
+  #answer {
+    flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 12px; padding: 14px 16px; font: inherit; font-size: 1.05rem;
+  }
+  #answer:focus { outline: none; border-color: var(--accent); }
+  .submit { font: inherit; font-weight: 700; cursor: pointer; background: var(--accent); border: 1px solid var(--accent); color: #2a0f1c; border-radius: 12px; padding: 0 22px; transition: filter 0.15s, transform 0.08s; }
+  .submit:hover { filter: brightness(1.07); } .submit:active { transform: scale(0.97); }
+
+  .feedback { text-align: center; min-height: 2.4em; margin: 14px 0 4px; font-size: 0.95rem; }
+  .feedback .word-good { color: var(--good); font-weight: 600; }
+  .feedback .word-bad { color: var(--bad); font-weight: 600; text-decoration: underline dotted; }
+  .feedback .tag { font-weight: 600; }
+  .feedback.good .tag { color: var(--good); } .feedback.bad .tag { color: var(--gold); }
+
+  .subcontrols { display: flex; gap: 10px; justify-content: center; }
+  .subcontrols button { font: inherit; font-size: 0.85rem; cursor: pointer; color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 10px; padding: 9px 14px; transition: color 0.15s, border-color 0.15s; }
+  .subcontrols button:hover { color: var(--text); border-color: var(--accent); }
+  .subcontrols .next { color: var(--text); }
+
+  .overlay { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(8,4,7,0.76); backdrop-filter: blur(4px); }
+  .overlay.show { display: flex; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px 28px; text-align: center; max-width: 420px; width: 100%; animation: pop 0.3s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes pop { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .panel .emoji { font-size: 2.8rem; margin-bottom: 6px; }
+  .panel h2 { margin: 0 0 8px; font-size: 1.5rem; }
+  .panel p { margin: 0 0 6px; color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+  .result-grid .cell { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; padding: 12px 6px; }
+  .result-grid .v { font-size: 1.4rem; font-weight: 800; }
+  .result-grid .l { font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+  .btn { font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; background: var(--accent); border: 1px solid var(--accent); color: #2a0f1c; border-radius: 12px; padding: 14px 26px; margin-top: 8px; width: 100%; transition: filter 0.15s, transform 0.08s; }
+  .btn:hover { filter: brightness(1.08); } .btn:active { transform: scale(0.97); }
+  .btn.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+  .warn { color: var(--gold); font-size: 0.85rem; margin-top: 10px; }
+
+  @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: 0.01ms !important; transition: none !important; } }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-block">
+        <h1>🎧 Listening Lab</h1>
+        <span class="subtitle">Listen, then type exactly what you hear.</span>
+      </div>
+      <a class="back" href="../">← Games</a>
+    </header>
+
+    <div class="hud">
+      <div class="stat"><div class="v" id="score">0</div><div class="l">Score</div></div>
+      <div class="stat center"><div class="v" id="progress">1 / 10</div><div class="l">Clip</div></div>
+      <div class="stat right"><div class="v" id="best">0</div><div class="l">Best</div></div>
+    </div>
+
+    <div class="card">
+      <div class="kind-label" id="kindLabel">Word</div>
+      <div class="play-row">
+        <button class="play" id="playBtn">🔊 Play</button>
+        <button class="slow" id="slowBtn" title="Play slowly">🐢 Slow</button>
+      </div>
+      <div class="hint-text" id="hintText">Tap play and listen carefully. You can replay as often as you like.</div>
+
+      <form class="answer-form" id="answerForm">
+        <input type="text" id="answer" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type what you hear…" />
+        <button type="submit" class="submit">Check</button>
+      </form>
+
+      <div class="feedback" id="feedback"></div>
+
+      <div class="subcontrols">
+        <button id="revealBtn">👀 Reveal answer</button>
+        <button class="next" id="nextBtn" style="display:none">Next clip →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay show" id="startOverlay">
+    <div class="panel">
+      <div class="emoji">🎧</div>
+      <h2>Listening Lab</h2>
+      <p>Press play to hear a word or sentence spoken aloud, then type exactly what you heard.</p>
+      <p>Replay as often as you need, or slow it down. Capitals and punctuation don't matter — spelling does. Best with headphones!</p>
+      <button class="btn" id="startBtn">Start</button>
+      <div class="warn" id="noSpeech" style="display:none">⚠️ Your browser doesn't support speech — try Chrome, Edge, or Safari.</div>
+    </div>
+  </div>
+
+  <div class="overlay" id="endOverlay">
+    <div class="panel">
+      <div class="emoji" id="endEmoji">🏆</div>
+      <h2 id="endTitle">Session complete!</h2>
+      <p id="endMsg"></p>
+      <div class="result-grid">
+        <div class="cell"><div class="v" id="rScore">0</div><div class="l">Score</div></div>
+        <div class="cell"><div class="v" id="rClean">0</div><div class="l">First-listen</div></div>
+      </div>
+      <button class="btn" id="againBtn">Play again</button>
+      <button class="btn ghost" id="homeBtn">Back to games</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+    const ITEMS = [
+      { t: "beautiful", k: "word" },
+      { t: "necessary", k: "word" },
+      { t: "Wednesday", k: "word" },
+      { t: "comfortable", k: "word" },
+      { t: "vegetable", k: "word" },
+      { t: "definitely", k: "word" },
+      { t: "restaurant", k: "word" },
+      { t: "opportunity", k: "word" },
+      { t: "Can you help me, please?", k: "sentence" },
+      { t: "I would like a cup of tea.", k: "sentence" },
+      { t: "The weather is nice today.", k: "sentence" },
+      { t: "She works at a hospital.", k: "sentence" },
+      { t: "We are going to the airport.", k: "sentence" },
+      { t: "What time does the train leave?", k: "sentence" },
+      { t: "He bought some fresh vegetables.", k: "sentence" },
+      { t: "They enjoyed the film last night.", k: "sentence" },
+      { t: "Could you repeat that, please?", k: "sentence" },
+      { t: "I have lived here for three years.", k: "sentence" },
+      { t: "My favorite season is autumn.", k: "sentence" },
+      { t: "Please remember to lock the door.", k: "sentence" }
+    ];
+    const ROUND = 10;
+
+    const el = (id) => document.getElementById(id);
+    const els = {
+      score: el("score"), progress: el("progress"), best: el("best"),
+      kindLabel: el("kindLabel"), playBtn: el("playBtn"), slowBtn: el("slowBtn"), hintText: el("hintText"),
+      answerForm: el("answerForm"), answer: el("answer"), feedback: el("feedback"),
+      revealBtn: el("revealBtn"), nextBtn: el("nextBtn"),
+      startOverlay: el("startOverlay"), endOverlay: el("endOverlay"),
+      startBtn: el("startBtn"), againBtn: el("againBtn"), homeBtn: el("homeBtn"), noSpeech: el("noSpeech"),
+      endEmoji: el("endEmoji"), endTitle: el("endTitle"), endMsg: el("endMsg"),
+      rScore: el("rScore"), rClean: el("rClean"),
+    };
+
+    const synth = window.speechSynthesis;
+    let voice = null;
+    function loadVoice() {
+      if (!synth) return;
+      const vs = synth.getVoices();
+      voice = vs.find((v) => /^en[-_](US|GB|AU)/i.test(v.lang) && /Samantha|Google US English|Google UK English Female|Zira|Karen|Daniel/i.test(v.name))
+           || vs.find((v) => /^en[-_]/i.test(v.lang))
+           || vs.find((v) => /^en/i.test(v.lang)) || vs[0] || null;
+    }
+    if (synth) { loadVoice(); synth.onvoiceschanged = loadVoice; }
+
+    let queue, idx, score, cleanSolves, attempts, solvedThis;
+    let best = +(localStorage.getItem("listeningBest") || 0);
+    els.best.textContent = best;
+
+    function shuffle(a) { a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+    function current() { return queue[idx]; }
+    function norm(s) { return s.toLowerCase().replace(/[.,!?;:"'’`]/g, "").replace(/\s+/g, " ").trim(); }
+
+    function speak(rate) {
+      if (!synth) return;
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(current().t);
+      if (voice) u.voice = voice;
+      u.rate = rate; u.pitch = 1; u.lang = voice ? voice.lang : "en-US";
+      u.onstart = () => els.playBtn.classList.add("speaking");
+      u.onend = () => els.playBtn.classList.remove("speaking");
+      u.onerror = () => els.playBtn.classList.remove("speaking");
+      synth.speak(u);
+    }
+
+    function startGame() {
+      if (!synth) { els.noSpeech.style.display = "block"; return; }
+      queue = shuffle(ITEMS).slice(0, ROUND);
+      idx = 0; score = 0; cleanSolves = 0;
+      els.score.textContent = 0;
+      els.startOverlay.classList.remove("show");
+      els.endOverlay.classList.remove("show");
+      loadItem();
+    }
+
+    function loadItem() {
+      const c = current();
+      attempts = 0; solvedThis = false;
+      els.progress.textContent = (idx + 1) + " / " + queue.length;
+      els.kindLabel.textContent = c.k === "word" ? "Word" : "Sentence";
+      els.hintText.textContent = c.k === "word"
+        ? "A single word — mind the tricky spelling."
+        : "A full sentence — capitals and punctuation don't matter.";
+      els.answer.value = ""; els.answer.disabled = false;
+      els.feedback.textContent = ""; els.feedback.className = "feedback";
+      els.revealBtn.style.display = ""; els.nextBtn.style.display = "none";
+      els.answer.focus();
+      setTimeout(() => speak(0.95), 350); // auto-play each new clip
+    }
+
+    function renderDiff(attempt) {
+      const tWords = current().t.split(/\s+/);
+      const aWords = attempt.trim().split(/\s+/);
+      const tNorm = tWords.map(norm);
+      let right = 0;
+      const html = tWords.map((w, i) => {
+        const ok = aWords[i] != null && norm(aWords[i]) === tNorm[i];
+        if (ok) right++;
+        return `<span class="word-${ok ? "good" : "bad"}">${w}</span>`;
+      }).join(" ");
+      return { right, total: tWords.length, html };
+    }
+
+    function check() {
+      if (solvedThis) return;
+      const attempt = els.answer.value;
+      if (!attempt.trim()) { speak(0.95); return; }
+      attempts++;
+      if (norm(attempt) === norm(current().t)) {
+        solvedThis = true;
+        const gained = Math.max(25, 100 - (attempts - 1) * 25);
+        if (attempts === 1) cleanSolves++;
+        score += gained; els.score.textContent = score;
+        if (score > best) { best = score; localStorage.setItem("listeningBest", best); els.best.textContent = best; }
+        els.feedback.innerHTML = `<span class="tag">✓ ${attempts === 1 ? "Perfect on the first listen!" : "Correct!"}</span> +${gained}`;
+        els.feedback.className = "feedback good";
+        finishItem();
+      } else {
+        const d = renderDiff(attempt);
+        els.feedback.innerHTML = `<span class="tag">${d.right} / ${d.total} words right</span> — listen again or reveal.<br>${d.html}`;
+        els.feedback.className = "feedback bad";
+        speak(0.95);
+      }
+    }
+
+    function reveal() {
+      if (solvedThis) return;
+      solvedThis = true;
+      els.feedback.innerHTML = `<span class="tag">Answer:</span> <span class="word-good">${current().t}</span>`;
+      els.feedback.className = "feedback bad";
+      finishItem();
+    }
+
+    function finishItem() {
+      els.answer.disabled = true;
+      els.revealBtn.style.display = "none";
+      els.nextBtn.style.display = "";
+      els.nextBtn.focus();
+    }
+
+    function next() {
+      idx++;
+      if (idx >= queue.length) return endGame();
+      loadItem();
+    }
+
+    function endGame() {
+      if (synth) synth.cancel();
+      els.endEmoji.textContent = cleanSolves === queue.length ? "🌟" : cleanSolves >= 7 ? "🏆" : "🎉";
+      els.endTitle.textContent = cleanSolves === queue.length ? "Perfect ear!" : "Session complete!";
+      els.endMsg.textContent = `You got ${cleanSolves} of ${queue.length} right on the first listen.`;
+      els.rScore.textContent = score;
+      els.rClean.textContent = cleanSolves + " / " + queue.length;
+      els.endOverlay.classList.add("show");
+    }
+
+    els.playBtn.addEventListener("click", () => speak(0.95));
+    els.slowBtn.addEventListener("click", () => speak(0.6));
+    els.answerForm.addEventListener("submit", (e) => { e.preventDefault(); check(); });
+    els.revealBtn.addEventListener("click", reveal);
+    els.nextBtn.addEventListener("click", next);
+    els.startBtn.addEventListener("click", startGame);
+    els.againBtn.addEventListener("click", startGame);
+    els.homeBtn.addEventListener("click", () => (location.href = "../"));
+
+    if (!synth) els.noSpeech.style.display = "block";
+  })();
+  </script>
+</body>
+</html>

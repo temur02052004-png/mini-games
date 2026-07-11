@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sentence Scramble</title>
+<style>
+  :root {
+    --bg: #0d1412; --card: #14201c; --border: #24352f;
+    --text: #e7f0ec; --muted: #86a096;
+    --accent: #35d0a0; --accent2: #5eccff;
+    --good: #6effa0; --bad: #ff6b6b; --gold: #ffd166;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(circle at 20% -10%, #16302a 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .app { width: 100%; max-width: 640px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
+  .title-block { display: flex; flex-direction: column; gap: 3px; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); font-size: 0.82rem; }
+  .back { color: var(--muted); text-decoration: none; font-size: 0.8rem; border: 1px solid var(--border); background: var(--card); padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+  .back:hover { color: var(--text); border-color: var(--accent); }
+
+  .hud { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .stat .v { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+  .stat .l { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .stat.right { text-align: right; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 22px; }
+  .level-label { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .hint-line { font-size: 0.9rem; color: var(--muted); margin-bottom: 18px; min-height: 1.3em; }
+  .hint-line b { color: var(--gold); }
+
+  .zone-label { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 4px 0 8px; }
+
+  .build {
+    min-height: 64px; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start;
+    padding: 14px; border: 1px dashed var(--border); border-radius: 12px;
+    background: rgba(255,255,255,0.02); margin-bottom: 16px;
+  }
+  .build.correct { border-color: var(--good); border-style: solid; background: rgba(110,255,160,0.06); }
+  .build.wrong { border-color: var(--bad); border-style: solid; }
+  .build:empty::after { content: "Tap words below, or drag them here…"; color: var(--muted); font-size: 0.9rem; }
+
+  .bank { display: flex; flex-wrap: wrap; gap: 8px; min-height: 48px; margin-bottom: 18px; }
+
+  .word {
+    font: inherit; font-size: 1.1rem; font-weight: 600; cursor: pointer; color: var(--text);
+    background: linear-gradient(180deg, #1d2c27, #172420); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; user-select: none;
+    transition: transform 0.08s, border-color 0.12s, background 0.12s, opacity 0.12s;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.4);
+  }
+  .word:hover { border-color: var(--accent); }
+  .word:active { transform: scale(0.96); }
+  .word.dragging { opacity: 0.4; }
+  .word.in-build { background: linear-gradient(180deg, #23413a, #1a302b); border-color: #2f4f46; }
+  .word.ghost { visibility: hidden; }
+
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+  .controls button {
+    font: inherit; font-size: 0.92rem; font-weight: 600; cursor: pointer; color: var(--text);
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 11px 16px;
+    transition: background 0.15s, transform 0.08s; flex: 1; min-width: 110px;
+  }
+  .controls button:hover { background: rgba(255,255,255,0.1); }
+  .controls button:active { transform: scale(0.97); }
+  .controls .check { background: var(--accent); border-color: var(--accent); color: #04231a; flex: 2; }
+  .controls .check:disabled { opacity: 0.4; cursor: default; }
+
+  .feedback { text-align: center; min-height: 1.5em; margin-top: 14px; font-size: 0.95rem; font-weight: 600; }
+  .feedback.good { color: var(--good); } .feedback.bad { color: var(--bad); }
+
+  .overlay { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(4,8,7,0.74); backdrop-filter: blur(4px); }
+  .overlay.show { display: flex; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px 28px; text-align: center; max-width: 420px; width: 100%; animation: pop 0.3s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes pop { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .panel .emoji { font-size: 2.8rem; margin-bottom: 6px; }
+  .panel h2 { margin: 0 0 8px; font-size: 1.5rem; }
+  .panel p { margin: 0 0 6px; color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+  .result-grid .cell { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; padding: 12px 6px; }
+  .result-grid .v { font-size: 1.4rem; font-weight: 800; }
+  .result-grid .l { font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+  .btn { font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; background: var(--accent); border: 1px solid var(--accent); color: #04231a; border-radius: 12px; padding: 14px 26px; margin-top: 8px; width: 100%; transition: filter 0.15s, transform 0.08s; }
+  .btn:hover { filter: brightness(1.08); } .btn:active { transform: scale(0.97); }
+  .btn.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+
+  @media (max-width: 480px) { .card { padding: 20px 16px; } .word { font-size: 1rem; padding: 9px 12px; } }
+  @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: 0.01ms !important; transition: none !important; } }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-block">
+        <h1>🧩 Sentence Scramble</h1>
+        <span class="subtitle">Put the words back in order to rebuild the sentence.</span>
+      </div>
+      <a class="back" href="../">← Games</a>
+    </header>
+
+    <div class="hud">
+      <div class="stat"><div class="v" id="score">0</div><div class="l">Score</div></div>
+      <div class="stat" style="text-align:center"><div class="v" id="progress">1 / 10</div><div class="l">Sentence</div></div>
+      <div class="stat right"><div class="v" id="streak">0🔥</div><div class="l">Streak</div></div>
+    </div>
+
+    <div class="card">
+      <div class="level-label" id="levelLabel">Warm-up</div>
+      <div class="hint-line" id="hintLine"></div>
+
+      <div class="zone-label">Your sentence</div>
+      <div class="build" id="build"></div>
+
+      <div class="zone-label">Word bank</div>
+      <div class="bank" id="bank"></div>
+
+      <div class="controls">
+        <button id="clearBtn">↺ Reset</button>
+        <button id="hintBtn">💡 Hint</button>
+        <button class="check" id="checkBtn" disabled>Check ✓</button>
+      </div>
+
+      <div class="feedback" id="feedback"></div>
+    </div>
+  </div>
+
+  <div class="overlay show" id="startOverlay">
+    <div class="panel">
+      <div class="emoji">🧩</div>
+      <h2>Sentence Scramble</h2>
+      <p>The words of a sentence have been shuffled. Tap them (or drag) into the box to rebuild the sentence in the right order.</p>
+      <p>Solve it on the first try for bonus points and build a streak. A hint can lock the next correct word in place.</p>
+      <button class="btn" id="startBtn">Start</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="endOverlay">
+    <div class="panel">
+      <div class="emoji" id="endEmoji">🏆</div>
+      <h2 id="endTitle">Round complete!</h2>
+      <p id="endMsg"></p>
+      <div class="result-grid">
+        <div class="cell"><div class="v" id="rScore">0</div><div class="l">Score</div></div>
+        <div class="cell"><div class="v" id="rClean">0</div><div class="l">First-try solves</div></div>
+      </div>
+      <button class="btn" id="againBtn">Play again</button>
+      <button class="btn ghost" id="homeBtn">Back to games</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+    // Sentences grouped roughly easy → harder. Order matters; each is a natural sentence.
+    const SENTENCES = [
+      { t: "I like to read books.", hint: "A simple daily habit." },
+      { t: "She is playing in the garden.", hint: "Someone having fun outside." },
+      { t: "We are going to the beach today.", hint: "A plan for the day." },
+      { t: "He always drinks coffee in the morning.", hint: "A routine — note where 'always' sits." },
+      { t: "They have lived here for ten years.", hint: "Present perfect — 'have' + past participle." },
+      { t: "My sister wants to become a doctor.", hint: "A future goal." },
+      { t: "The children were watching a film quietly.", hint: "Past continuous — 'were' + -ing." },
+      { t: "If it rains, we will stay at home.", hint: "A conditional — the 'if' part comes first." },
+      { t: "She has never been to another country.", hint: "'never' goes between 'has' and the verb." },
+      { t: "Learning a new language takes time and patience.", hint: "A general truth about learning." },
+    ];
+
+    const el = (id) => document.getElementById(id);
+    const els = {
+      score: el("score"), progress: el("progress"), streak: el("streak"),
+      levelLabel: el("levelLabel"), hintLine: el("hintLine"),
+      build: el("build"), bank: el("bank"),
+      clearBtn: el("clearBtn"), hintBtn: el("hintBtn"), checkBtn: el("checkBtn"),
+      feedback: el("feedback"),
+      startOverlay: el("startOverlay"), endOverlay: el("endOverlay"),
+      startBtn: el("startBtn"), againBtn: el("againBtn"), homeBtn: el("homeBtn"),
+      endEmoji: el("endEmoji"), endTitle: el("endTitle"), endMsg: el("endMsg"),
+      rScore: el("rScore"), rClean: el("rClean"),
+    };
+
+    const LABELS = ["Warm-up", "Warm-up", "Getting going", "Getting going", "Building up",
+                    "Building up", "Trickier", "Trickier", "Challenge", "Challenge"];
+
+    let order, idx, score, streak, cleanSolves, correctWords, lockedCount, triedThis, solvedThis;
+
+    function shuffle(a) { a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+    function startGame() {
+      order = shuffle(SENTENCES.map((_, i) => i)); // random sentence order
+      idx = 0; score = 0; streak = 0; cleanSolves = 0;
+      els.score.textContent = 0; els.streak.textContent = "0🔥";
+      els.startOverlay.classList.remove("show");
+      els.endOverlay.classList.remove("show");
+      loadSentence();
+    }
+
+    function currentSentence() { return SENTENCES[order[idx]]; }
+
+    function loadSentence() {
+      const s = currentSentence();
+      correctWords = s.t.replace(/\.$/, "").split(" ");
+      lockedCount = 0; triedThis = false; solvedThis = false;
+      els.progress.textContent = (idx + 1) + " / " + SENTENCES.length;
+      els.levelLabel.textContent = LABELS[idx] || "Challenge";
+      els.hintLine.textContent = s.hint;
+      els.feedback.textContent = ""; els.feedback.className = "feedback";
+      els.build.className = "build";
+
+      // build starts empty; bank has shuffled words
+      els.build.innerHTML = "";
+      els.bank.innerHTML = "";
+      let bankWords = shuffle(correctWords.map((w, i) => ({ w, i })));
+      // guard: ensure not already in order
+      if (bankWords.every((x, i) => x.i === i) && correctWords.length > 1) bankWords = shuffle(bankWords);
+      bankWords.forEach(({ w }) => els.bank.appendChild(makeWord(w)));
+      updateCheck();
+    }
+
+    function makeWord(text) {
+      const b = document.createElement("button");
+      b.className = "word"; b.type = "button"; b.textContent = text;
+      b.draggable = true;
+      b.addEventListener("click", () => onWordClick(b));
+      b.addEventListener("dragstart", (e) => { b.classList.add("dragging"); e.dataTransfer.setData("text/plain", ""); dragEl = b; });
+      b.addEventListener("dragend", () => { b.classList.remove("dragging"); dragEl = null; });
+      return b;
+    }
+
+    function onWordClick(b) {
+      if (b.parentElement === els.bank) {
+        b.classList.add("in-build");
+        els.build.appendChild(b);
+      } else {
+        // locked words (from hint) can't be removed
+        if (b.dataset.locked) return;
+        b.classList.remove("in-build");
+        els.bank.appendChild(b);
+      }
+      els.build.className = "build";
+      els.feedback.textContent = "";
+      updateCheck();
+    }
+
+    // drag-and-drop reordering within build + moving between zones
+    let dragEl = null;
+    function setupDnD(zone) {
+      zone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (!dragEl) return;
+        const after = getDragAfter(zone, e.clientX, e.clientY);
+        if (zone === els.build) dragEl.classList.add("in-build");
+        else if (!dragEl.dataset.locked) dragEl.classList.remove("in-build");
+        if (dragEl.dataset.locked && zone === els.bank) return; // don't allow locked into bank
+        if (after == null) zone.appendChild(dragEl);
+        else zone.insertBefore(dragEl, after);
+      });
+      zone.addEventListener("drop", (e) => { e.preventDefault(); els.build.className = "build"; els.feedback.textContent=""; updateCheck(); });
+    }
+    function getDragAfter(zone, x, y) {
+      const items = [...zone.querySelectorAll(".word:not(.dragging)")];
+      let closest = { dist: Infinity, el: null };
+      for (const item of items) {
+        const box = item.getBoundingClientRect();
+        const offX = x - (box.left + box.width / 2);
+        const offY = y - (box.top + box.height / 2);
+        const dist = offY < 0 || (offY < box.height && offX < 0) ? Math.hypot(offX, offY) : Infinity;
+        if (dist < closest.dist) closest = { dist, el: item };
+      }
+      return closest.el;
+    }
+
+    function updateCheck() {
+      const n = els.build.querySelectorAll(".word").length;
+      els.checkBtn.disabled = n !== correctWords.length;
+    }
+
+    function buildWords() { return [...els.build.querySelectorAll(".word")].map((b) => b.textContent); }
+
+    function check() {
+      if (solvedThis) return;
+      const attempt = buildWords();
+      const ok = attempt.join(" ") === correctWords.join(" ");
+      if (ok) {
+        solvedThis = true;
+        const gained = triedThis ? 50 : 100;
+        if (!triedThis) cleanSolves++;
+        streak = triedThis ? 0 : streak + 1;
+        score += gained + streak * 10;
+        els.score.textContent = score;
+        els.streak.textContent = streak + "🔥";
+        els.build.className = "build correct";
+        els.feedback.textContent = (triedThis ? "Correct! " : "Perfect first try! ") + "+" + (gained + streak * 10);
+        els.feedback.className = "feedback good";
+        [...els.build.querySelectorAll(".word")].forEach((b) => (b.draggable = false));
+        setTimeout(nextSentence, 1100);
+      } else {
+        triedThis = true;
+        streak = 0; els.streak.textContent = "0🔥";
+        els.build.className = "build wrong";
+        // find first wrong position
+        let firstWrong = attempt.findIndex((w, i) => w !== correctWords[i]);
+        els.feedback.textContent = firstWrong >= 0
+          ? `Not quite — word ${firstWrong + 1} isn't right yet.`
+          : "Not quite — check the order.";
+        els.feedback.className = "feedback bad";
+      }
+    }
+
+    function hint() {
+      if (solvedThis) return;
+      if (triedThis) streak = 0;
+      // ensure the first `lockedCount+1` words are correct and locked at the front
+      lockedCount++;
+      triedThis = true; // hint counts as help — no clean bonus
+      streak = 0; els.streak.textContent = "0🔥";
+      // gather all word buttons
+      const all = [...els.bank.querySelectorAll(".word"), ...els.build.querySelectorAll(".word")];
+      // rebuild: place first lockedCount correct words into build (locked), rest back to bank
+      const need = correctWords.slice(0, lockedCount);
+      const pool = all.slice();
+      els.build.innerHTML = ""; els.bank.innerHTML = "";
+      need.forEach((w, i) => {
+        const bi = pool.findIndex((b) => b.textContent === w);
+        const b = pool.splice(bi, 1)[0];
+        b.classList.add("in-build"); b.dataset.locked = "1"; b.draggable = false;
+        b.style.borderColor = "var(--gold)";
+        els.build.appendChild(b);
+      });
+      pool.forEach((b) => { b.classList.remove("in-build"); els.bank.appendChild(b); });
+      els.build.className = "build";
+      els.feedback.textContent = `Locked in the first ${lockedCount} word${lockedCount>1?"s":""}.`;
+      els.feedback.className = "feedback";
+      updateCheck();
+      if (lockedCount >= correctWords.length) check();
+    }
+
+    function reset() {
+      // move all non-locked words back to bank
+      const locked = [...els.build.querySelectorAll(".word")].filter((b) => b.dataset.locked);
+      const movable = [...els.build.querySelectorAll(".word")].filter((b) => !b.dataset.locked);
+      movable.forEach((b) => { b.classList.remove("in-build"); els.bank.appendChild(b); });
+      els.build.className = "build"; els.feedback.textContent = ""; updateCheck();
+    }
+
+    function nextSentence() {
+      idx++;
+      if (idx >= SENTENCES.length) return endGame();
+      loadSentence();
+    }
+
+    function endGame() {
+      els.endEmoji.textContent = cleanSolves === SENTENCES.length ? "🌟" : cleanSolves >= 7 ? "🏆" : "🎉";
+      els.endTitle.textContent = cleanSolves === SENTENCES.length ? "Flawless!" : "Round complete!";
+      els.endMsg.textContent = `You rebuilt all ${SENTENCES.length} sentences and solved ${cleanSolves} on the first try.`;
+      els.rScore.textContent = score;
+      els.rClean.textContent = cleanSolves + " / " + SENTENCES.length;
+      els.endOverlay.classList.add("show");
+    }
+
+    setupDnD(els.build);
+    setupDnD(els.bank);
+    els.startBtn.addEventListener("click", startGame);
+    els.againBtn.addEventListener("click", startGame);
+    els.homeBtn.addEventListener("click", () => (location.href = "../"));
+    els.checkBtn.addEventListener("click", check);
+    els.hintBtn.addEventListener("click", hint);
+    els.clearBtn.addEventListener("click", reset);
+  })();
+  </script>
+</body>
+</html>
