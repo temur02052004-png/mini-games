@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Focus Sprint</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Focus Sprint</h1>
+      <div class="streak" id="streak">🔥 0 sessions today</div>
+    </header>
+
+    <main>
+      <section class="timer-card" id="timerCard">
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="work">Focus</button>
+          <button class="mode-tab" data-mode="short">Short Break</button>
+          <button class="mode-tab" data-mode="long">Long Break</button>
+        </div>
+
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 220 220">
+            <circle class="ring-bg" cx="110" cy="110" r="100"></circle>
+            <circle class="ring-progress" id="ringProgress" cx="110" cy="110" r="100"></circle>
+          </svg>
+          <div class="time-display" id="timeDisplay">25:00</div>
+        </div>
+
+        <div class="current-task" id="currentTask">No task selected</div>
+
+        <div class="controls">
+          <button id="startBtn" class="primary">Start</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+
+        <div class="settings">
+          <label>Focus <input type="number" id="workMins" value="25" min="1" max="90" /> min</label>
+          <label>Short <input type="number" id="shortMins" value="5" min="1" max="30" /> min</label>
+          <label>Long <input type="number" id="longMins" value="15" min="1" max="60" /> min</label>
+        </div>
+      </section>
+
+      <section class="tasks-card">
+        <h2>Tasks</h2>
+        <form id="taskForm">
+          <input type="text" id="taskInput" placeholder="What are you working on?" autocomplete="off" />
+          <button type="submit">Add</button>
+        </form>
+        <ul id="taskList"></ul>
+      </section>
+    </main>
+  </div>
+
+  <div class="celebration" id="celebration">
+    <div class="celebration-content">
+      <div class="celebration-emoji">🎉</div>
+      <div class="celebration-text" id="celebrationText">Sprint complete!</div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
