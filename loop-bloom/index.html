@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Loop Bloom</title>
+<style>
+  :root {
+    --bg: #0c0a14; --card: #16121f; --border: #2a2338;
+    --text: #efeaf7; --muted: #a196b8;
+    --accent: #ff79c6; --accent2: #8be9fd;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(circle at 50% -10%, #241832 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .app { width: 100%; max-width: 760px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; }
+  .title-block { display: flex; flex-direction: column; gap: 3px; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); font-size: 0.82rem; }
+  .back { color: var(--muted); text-decoration: none; font-size: 0.8rem; border: 1px solid var(--border); background: var(--card); padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+  .back:hover { color: var(--text); border-color: var(--accent); }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+
+  .grid-wrap { overflow-x: auto; padding-bottom: 4px; }
+  .grid { display: grid; gap: 5px; min-width: 460px; }
+  .row { display: grid; grid-template-columns: repeat(16, 1fr); gap: 5px; }
+  .cell {
+    aspect-ratio: 1 / 1; border-radius: 6px; cursor: pointer; border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03); transition: transform 0.06s, background 0.1s, box-shadow 0.1s;
+  }
+  .cell:hover { border-color: var(--muted); }
+  .cell.on { border-color: transparent; box-shadow: 0 0 0 1px rgba(255,255,255,0.15) inset; }
+  .row:nth-child(1) .cell.on { background: #ff5d8f; }
+  .row:nth-child(2) .cell.on { background: #ff8f5d; }
+  .row:nth-child(3) .cell.on { background: #ffd15d; }
+  .row:nth-child(4) .cell.on { background: #9bff5d; }
+  .row:nth-child(5) .cell.on { background: #5dffc2; }
+  .row:nth-child(6) .cell.on { background: #5dc2ff; }
+  .row:nth-child(7) .cell.on { background: #8b7dff; }
+  .row:nth-child(8) .cell.on { background: #d17dff; }
+  .cell.beat { background: rgba(255,255,255,0.06); }
+  .cell.playhead { box-shadow: 0 0 0 2px var(--accent2) inset; }
+  .cell.pulse { transform: scale(1.18); box-shadow: 0 0 16px 2px currentColor; }
+  .col-index { display: grid; grid-template-columns: repeat(16, 1fr); gap: 5px; margin-top: 6px; }
+  .col-index span { text-align: center; font-size: 0.6rem; color: var(--muted); }
+
+  .controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+  .play {
+    font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; color: #2a0a1c;
+    background: linear-gradient(180deg, var(--accent), #ff5db0); border: none; border-radius: 12px;
+    padding: 12px 22px; display: flex; align-items: center; gap: 8px; min-width: 108px; justify-content: center;
+    box-shadow: 0 4px 16px rgba(255,121,198,0.3); transition: filter 0.15s, transform 0.08s;
+  }
+  .play:hover { filter: brightness(1.06); } .play:active { transform: scale(0.97); }
+  .ctl { display: flex; flex-direction: column; gap: 4px; }
+  .ctl label { font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+  .ctl label .val { color: var(--accent); font-weight: 700; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 130px; height: 4px; border-radius: 999px; background: #33293f; outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: var(--accent); border: 2px solid #0c0a14; cursor: pointer; }
+  input[type=range]::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: var(--accent); border: 2px solid #0c0a14; cursor: pointer; }
+  select { font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; cursor: pointer; }
+  .btn { font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; color: var(--text); background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; transition: background 0.15s, transform 0.08s; }
+  .btn:hover { background: rgba(255,255,255,0.1); } .btn:active { transform: scale(0.96); }
+  .spacer { flex: 1; }
+  .flash { color: var(--accent2); font-size: 0.82rem; min-height: 1.2em; margin-top: 10px; }
+
+  @media (max-width: 520px) { .controls { gap: 10px; } input[type=range] { width: 100px; } }
+  @media (prefers-reduced-motion: reduce) { .cell { transition: none; } }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-block">
+        <h1>🎵 Loop Bloom</h1>
+        <span class="subtitle">Tap the grid to compose a looping melody — it always sounds good.</span>
+      </div>
+      <a class="back" href="../">← Games</a>
+    </header>
+
+    <div class="card">
+      <div class="grid-wrap">
+        <div class="grid" id="grid"></div>
+        <div class="col-index" id="colIndex"></div>
+      </div>
+
+      <div class="controls">
+        <button class="play" id="playBtn">▶ Play</button>
+        <div class="ctl">
+          <label>Tempo <span class="val" id="bpmVal">108</span> bpm</label>
+          <input type="range" id="bpm" min="60" max="180" value="108" />
+        </div>
+        <div class="ctl">
+          <label>Sound</label>
+          <select id="instrument">
+            <option value="triangle">Marimba</option>
+            <option value="sine">Music box</option>
+            <option value="square">Retro</option>
+            <option value="sawtooth">Synth</option>
+          </select>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn" id="randomBtn">🎲 Surprise</button>
+        <button class="btn" id="clearBtn">🗑 Clear</button>
+        <button class="btn" id="shareBtn">🔗 Copy link</button>
+      </div>
+      <div class="flash" id="flash">Tip: taller rows are higher notes. Build a pattern, then press play.</div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+    const STEPS = 16, ROWS = 8;
+    // C major pentatonic, low → high (index 0 = lowest). Rows render high→low.
+    const SCALE = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25];
+
+    const el = (id) => document.getElementById(id);
+    const gridEl = el("grid"), colIndexEl = el("colIndex");
+    const playBtn = el("playBtn"), bpmEl = el("bpm"), bpmVal = el("bpmVal");
+    const instrumentEl = el("instrument"), flash = el("flash");
+
+    // grid[rowFromTop][step]; rowFromTop 0 = highest pitch
+    let grid = Array.from({ length: ROWS }, () => new Array(STEPS).fill(false));
+    let cells = [];           // cells[rowFromTop][step] = element
+    let playing = false, bpm = 108, currentStep = 0;
+    let ctx = null, master = null, filter = null;
+    let schedulerTimer = null, nextStepTime = 0, drawStep = -1;
+    const noteQueue = [];
+
+    function pitchForRow(rowFromTop) { return SCALE[ROWS - 1 - rowFromTop]; }
+
+    // build grid DOM
+    for (let r = 0; r < ROWS; r++) {
+      const rowEl = document.createElement("div");
+      rowEl.className = "row";
+      const rowCells = [];
+      for (let s = 0; s < STEPS; s++) {
+        const c = document.createElement("button");
+        c.className = "cell" + (s % 4 === 0 ? " beat" : "");
+        c.type = "button";
+        c.addEventListener("click", () => toggle(r, s));
+        rowEl.appendChild(c);
+        rowCells.push(c);
+      }
+      gridEl.appendChild(rowEl);
+      cells.push(rowCells);
+    }
+    for (let s = 0; s < STEPS; s++) {
+      const sp = document.createElement("span");
+      sp.textContent = s % 4 === 0 ? (s / 4 + 1) : "";
+      colIndexEl.appendChild(sp);
+    }
+
+    function toggle(r, s) {
+      grid[r][s] = !grid[r][s];
+      cells[r][s].classList.toggle("on", grid[r][s]);
+      if (grid[r][s]) { ensureAudio(); previewNote(pitchForRow(r)); }
+      writeHash();
+    }
+
+    function renderGrid() {
+      for (let r = 0; r < ROWS; r++)
+        for (let s = 0; s < STEPS; s++)
+          cells[r][s].classList.toggle("on", grid[r][s]);
+    }
+
+    // ---- audio ----
+    function ensureAudio() {
+      if (ctx) return;
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      filter = ctx.createBiquadFilter();
+      filter.type = "lowpass"; filter.frequency.value = 3200;
+      master = ctx.createGain(); master.gain.value = 0.9;
+      filter.connect(master).connect(ctx.destination);
+    }
+    function voice(freq, time, dur) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = instrumentEl.value; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, time);
+      g.gain.exponentialRampToValueAtTime(0.25, time + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+      o.connect(g).connect(filter);
+      o.start(time); o.stop(time + dur + 0.02);
+    }
+    function previewNote(freq) {
+      if (ctx.state === "suspended") ctx.resume();
+      voice(freq, ctx.currentTime, 0.35);
+    }
+
+    // ---- transport ----
+    function scheduleStep(step, time) {
+      const dur = Math.min(0.5, 60 / bpm / 2);
+      for (let r = 0; r < ROWS; r++) if (grid[r][step]) voice(pitchForRow(r), time, dur);
+      noteQueue.push({ step, time });
+    }
+    function scheduler() {
+      const secPerStep = 60 / bpm / 4; // 16th notes
+      while (nextStepTime < ctx.currentTime + 0.1) {
+        scheduleStep(currentStep, nextStepTime);
+        nextStepTime += secPerStep;
+        currentStep = (currentStep + 1) % STEPS;
+      }
+    }
+    function draw() {
+      if (!playing) return;
+      let step = drawStep;
+      while (noteQueue.length && noteQueue[0].time <= ctx.currentTime) step = noteQueue.shift().step;
+      if (step !== drawStep && step >= 0) { setPlayhead(step); drawStep = step; }
+      requestAnimationFrame(draw);
+    }
+    function setPlayhead(step) {
+      for (let s = 0; s < STEPS; s++)
+        for (let r = 0; r < ROWS; r++) cells[r][s].classList.toggle("playhead", s === step);
+      for (let r = 0; r < ROWS; r++) if (grid[r][step]) pulse(cells[r][step]);
+    }
+    function pulse(c) {
+      c.classList.add("pulse");
+      setTimeout(() => c.classList.remove("pulse"), 160);
+    }
+
+    function play() {
+      ensureAudio();
+      if (ctx.state === "suspended") ctx.resume();
+      playing = true;
+      playBtn.textContent = "⏸ Pause";
+      currentStep = 0; drawStep = -1; noteQueue.length = 0;
+      nextStepTime = ctx.currentTime + 0.06;
+      schedulerTimer = setInterval(scheduler, 25);
+      requestAnimationFrame(draw);
+    }
+    function stop() {
+      playing = false;
+      playBtn.textContent = "▶ Play";
+      clearInterval(schedulerTimer);
+      for (let s = 0; s < STEPS; s++) for (let r = 0; r < ROWS; r++) cells[r][s].classList.remove("playhead");
+    }
+
+    playBtn.addEventListener("click", () => (playing ? stop() : play()));
+    bpmEl.addEventListener("input", () => { bpm = +bpmEl.value; bpmVal.textContent = bpm; });
+
+    el("clearBtn").addEventListener("click", () => {
+      grid = Array.from({ length: ROWS }, () => new Array(STEPS).fill(false));
+      renderGrid(); writeHash(); flash.textContent = "Cleared — fresh canvas.";
+    });
+    el("randomBtn").addEventListener("click", () => {
+      ensureAudio();
+      grid = Array.from({ length: ROWS }, () => new Array(STEPS).fill(false));
+      // musical-ish: one note per column with ~65% density, favor a gentle contour
+      for (let s = 0; s < STEPS; s++) {
+        if (Math.random() < 0.7) {
+          const r = Math.floor(Math.random() * ROWS);
+          grid[r][s] = true;
+          if (Math.random() < 0.25) grid[Math.min(ROWS - 1, r + 2)][s] = true; // occasional harmony
+        }
+      }
+      renderGrid(); writeHash(); flash.textContent = "Rolled a fresh pattern 🎲";
+    });
+
+    // ---- share via URL hash ----
+    function writeHash() {
+      let bits = "";
+      for (let r = 0; r < ROWS; r++) for (let s = 0; s < STEPS; s++) bits += grid[r][s] ? "1" : "0";
+      let bytes = "";
+      for (let i = 0; i < bits.length; i += 8) bytes += String.fromCharCode(parseInt(bits.substr(i, 8), 2));
+      history.replaceState(null, "", "#" + btoa(bytes));
+    }
+    function readHash() {
+      try {
+        const h = location.hash.slice(1);
+        if (!h) return;
+        const bytes = atob(h);
+        let bits = "";
+        for (let i = 0; i < bytes.length; i++) bits += bytes.charCodeAt(i).toString(2).padStart(8, "0");
+        for (let r = 0; r < ROWS; r++) for (let s = 0; s < STEPS; s++) grid[r][s] = bits[r * STEPS + s] === "1";
+        renderGrid();
+      } catch {}
+    }
+    el("shareBtn").addEventListener("click", async () => {
+      writeHash();
+      try { await navigator.clipboard.writeText(location.href); flash.textContent = "Link copied — share your loop! 🔗"; }
+      catch { flash.textContent = "Your loop is in the address bar — copy it to share."; }
+    });
+
+    readHash();
+    renderGrid();
+  })();
+  </script>
+</body>
+</html>

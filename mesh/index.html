@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mesh</title>
+<style>
+  :root {
+    --bg: #0e0e12; --card: #17171d; --border: #282833;
+    --text: #ece9f1; --muted: #918ea3; --accent: #b6a2ff;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(circle at 50% -10%, #1e1c2e 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .app { width: 100%; max-width: 780px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
+  .title-block { display: flex; flex-direction: column; gap: 3px; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); font-size: 0.82rem; }
+  .back { color: var(--muted); text-decoration: none; font-size: 0.8rem; border: 1px solid var(--border); background: var(--card); padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+  .back:hover { color: var(--text); border-color: var(--accent); }
+
+  .stage {
+    position: relative; width: 100%; border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--border); background: #000; aspect-ratio: 16 / 10; touch-action: none;
+  }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .handle {
+    position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.9); background: rgba(255,255,255,0.15);
+    cursor: grab; backdrop-filter: blur(2px); box-shadow: 0 2px 8px rgba(0,0,0,0.4); touch-action: none;
+  }
+  .handle:active { cursor: grabbing; }
+  .hint { color: var(--muted); font-size: 0.78rem; margin: 8px 2px 0; }
+
+  .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .btn {
+    font: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer; color: var(--text);
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 11px 16px;
+    transition: background 0.15s, transform 0.08s; display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn:hover { background: rgba(255,255,255,0.1); } .btn:active { transform: scale(0.96); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #1a1035; font-weight: 700; }
+  .toggle.on { border-color: var(--accent); color: var(--accent); background: rgba(182,162,255,0.1); }
+  select { font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+  .spacer { flex: 1; }
+  .flash { color: var(--accent); font-size: 0.8rem; min-height: 1.1em; margin-top: 10px; }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-block">
+        <h1>🖼️ Mesh</h1>
+        <span class="subtitle">Generate soft gradient wallpapers — drag the dots, roll palettes, download.</span>
+      </div>
+      <a class="back" href="../">← Games</a>
+    </header>
+
+    <div class="stage" id="stage">
+      <canvas id="canvas"></canvas>
+    </div>
+    <div class="hint">Drag the dots to reshape the blend. Colours follow each dot.</div>
+
+    <div class="controls">
+      <button class="btn primary" id="randomBtn">🎲 New palette</button>
+      <button class="btn toggle on" id="grainBtn">✷ Grain</button>
+      <div class="spacer"></div>
+      <select id="resSel" title="Download size">
+        <option value="1920x1080">Desktop · 1920×1080</option>
+        <option value="1080x1920">Phone · 1080×1920</option>
+        <option value="1440x1440">Square · 1440×1440</option>
+        <option value="2560x1440">Wide · 2560×1440</option>
+      </select>
+      <button class="btn" id="downloadBtn">⬇ Download</button>
+    </div>
+    <div class="flash" id="flash"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+    const stage = document.getElementById("stage");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const flash = document.getElementById("flash");
+    const grainBtn = document.getElementById("grainBtn");
+
+    let points = [];       // {x,y in 0..1, h,s,l}
+    let grain = true;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    // ---- palette generation ----
+    function rand(a, b) { return a + Math.random() * (b - a); }
+    function makePalette() {
+      const base = Math.random() * 360;
+      const schemes = [
+        [0, 40, 80, 200, 320],      // spread
+        [0, 25, 50, 200, 180],      // analogous + complement
+        [0, 30, 330, 160, 190],     // split
+        [0, 60, 120, 240, 300],     // rainbow-ish
+      ];
+      const offs = schemes[Math.floor(Math.random() * schemes.length)];
+      const layout = [
+        [0.18, 0.2], [0.82, 0.24], [0.5, 0.55], [0.2, 0.82], [0.8, 0.8],
+      ];
+      points = offs.map((o, i) => ({
+        x: Math.min(0.92, Math.max(0.08, layout[i][0] + rand(-0.08, 0.08))),
+        y: Math.min(0.92, Math.max(0.08, layout[i][1] + rand(-0.08, 0.08))),
+        h: (base + o + rand(-10, 10) + 360) % 360,
+        s: rand(62, 88),
+        l: rand(46, 68),
+      }));
+    }
+    const colorStr = (p, a) => `hsla(${p.h.toFixed(1)}, ${p.s.toFixed(0)}%, ${p.l.toFixed(0)}%, ${a})`;
+
+    // ---- grain tile ----
+    let noiseTile = null;
+    function makeNoise() {
+      const n = document.createElement("canvas"); n.width = n.height = 140;
+      const nc = n.getContext("2d");
+      const img = nc.createImageData(140, 140);
+      for (let i = 0; i < img.data.length; i += 4) {
+        const v = 120 + Math.random() * 135;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+      }
+      nc.putImageData(img, 0, 0); return n;
+    }
+
+    // ---- render ----
+    function paint(c, w, h, withGrain) {
+      c.globalCompositeOperation = "source-over";
+      c.filter = "none";
+      // base wash between the first two colours so edges are never empty
+      const base = c.createLinearGradient(0, 0, w, h);
+      base.addColorStop(0, colorStr(points[0], 1));
+      base.addColorStop(1, colorStr(points[1], 1));
+      c.fillStyle = base; c.fillRect(0, 0, w, h);
+      // soft colour blobs
+      c.filter = `blur(${Math.round(Math.min(w, h) * 0.16)}px)`;
+      const R = Math.max(w, h) * 0.6;
+      for (const p of points) {
+        const g = c.createRadialGradient(p.x * w, p.y * h, 0, p.x * w, p.y * h, R);
+        g.addColorStop(0, colorStr(p, 1));
+        g.addColorStop(1, colorStr(p, 0));
+        c.fillStyle = g; c.fillRect(0, 0, w, h);
+      }
+      c.filter = "none";
+      if (withGrain) {
+        if (!noiseTile) noiseTile = makeNoise();
+        c.save();
+        c.globalAlpha = 0.05; c.globalCompositeOperation = "overlay";
+        const pat = c.createPattern(noiseTile, "repeat");
+        c.fillStyle = pat; c.fillRect(0, 0, w, h);
+        c.restore();
+      }
+    }
+
+    function render() {
+      const rect = stage.getBoundingClientRect();
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      paint(ctx, rect.width, rect.height, grain);
+      placeHandles();
+    }
+
+    // ---- draggable handles ----
+    function placeHandles() {
+      stage.querySelectorAll(".handle").forEach((h) => h.remove());
+      points.forEach((p, i) => {
+        const h = document.createElement("div");
+        h.className = "handle";
+        h.style.left = p.x * 100 + "%"; h.style.top = p.y * 100 + "%";
+        h.style.background = colorStr(p, 0.55);
+        h.addEventListener("pointerdown", (e) => startDrag(e, i, h));
+        stage.appendChild(h);
+      });
+    }
+    let drag = null;
+    function startDrag(e, i, h) {
+      e.preventDefault();
+      drag = { i, h }; h.setPointerCapture(e.pointerId);
+      h.addEventListener("pointermove", onDrag);
+      h.addEventListener("pointerup", endDrag);
+      h.addEventListener("pointercancel", endDrag);
+    }
+    function onDrag(e) {
+      if (!drag) return;
+      const rect = stage.getBoundingClientRect();
+      const p = points[drag.i];
+      p.x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      p.y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+      drag.h.style.left = p.x * 100 + "%"; drag.h.style.top = p.y * 100 + "%";
+      // repaint only the canvas (handles stay)
+      const r = stage.getBoundingClientRect();
+      paint(ctx, r.width, r.height, grain);
+    }
+    function endDrag(e) {
+      if (!drag) return;
+      drag.h.removeEventListener("pointermove", onDrag);
+      drag.h.removeEventListener("pointerup", endDrag);
+      drag.h.removeEventListener("pointercancel", endDrag);
+      drag = null;
+    }
+
+    // ---- controls ----
+    document.getElementById("randomBtn").addEventListener("click", () => { makePalette(); render(); flash.textContent = ""; });
+    grainBtn.addEventListener("click", () => {
+      grain = !grain; grainBtn.classList.toggle("on", grain);
+      const r = stage.getBoundingClientRect(); paint(ctx, r.width, r.height, grain);
+    });
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      const [w, h] = document.getElementById("resSel").value.split("x").map(Number);
+      const out = document.createElement("canvas"); out.width = w; out.height = h;
+      const oc = out.getContext("2d");
+      paint(oc, w, h, grain);
+      const a = document.createElement("a");
+      a.download = "mesh-" + w + "x" + h + ".png";
+      a.href = out.toDataURL("image/png"); a.click();
+      flash.textContent = "Saved " + w + "×" + h + " wallpaper ⬇";
+    });
+
+    let rt = null;
+    window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 120); });
+
+    makePalette();
+    render();
+  })();
+  </script>
+</body>
+</html>

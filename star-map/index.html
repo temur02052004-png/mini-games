@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Star Map</title>
+<style>
+  :root {
+    --bg: #06070f; --card: #0e1020; --border: #1e2340;
+    --text: #e9ecff; --muted: #8b93bf; --accent: #ffd479;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(circle at 50% -10%, #131634 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .app { width: 100%; max-width: 780px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
+  .title-block { display: flex; flex-direction: column; gap: 3px; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); font-size: 0.82rem; }
+  .back { color: var(--muted); text-decoration: none; font-size: 0.8rem; border: 1px solid var(--border); background: var(--card); padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+  .back:hover { color: var(--text); border-color: var(--accent); }
+
+  .stage {
+    position: relative; width: 100%; border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--border); background: #000; aspect-ratio: 4 / 3; cursor: crosshair; touch-action: none;
+  }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .empty-hint {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: rgba(233,236,255,0.55); font-size: 0.95rem; pointer-events: none; transition: opacity 0.4s; text-align: center; padding: 0 20px;
+  }
+  .empty-hint.hidden { opacity: 0; }
+
+  .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  #nameInput {
+    flex: 1; min-width: 160px; background: var(--card); border: 1px solid var(--border); color: var(--text);
+    border-radius: 10px; padding: 11px 14px; font: inherit; font-size: 0.95rem;
+  }
+  #nameInput:focus { outline: none; border-color: var(--accent); }
+  .btn {
+    font: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer; color: var(--text);
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 11px 15px;
+    transition: background 0.15s, transform 0.08s; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .btn:hover { background: rgba(255,255,255,0.1); } .btn:active { transform: scale(0.96); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #2a1e00; font-weight: 700; }
+  .count { color: var(--muted); font-size: 0.8rem; margin-top: 10px; }
+  .count b { color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-block">
+        <h1>✨ Star Map</h1>
+        <span class="subtitle">Tap the sky to place stars — they link into your own constellation.</span>
+      </div>
+      <a class="back" href="../">← Games</a>
+    </header>
+
+    <div class="stage" id="stage">
+      <canvas id="canvas"></canvas>
+      <div class="empty-hint" id="hint">Tap anywhere in the sky to place your first star ✦</div>
+    </div>
+
+    <div class="controls">
+      <input id="nameInput" type="text" maxlength="28" placeholder="Name your constellation…" />
+      <button class="btn" id="undoBtn">↶ Undo</button>
+      <button class="btn" id="clearBtn">🗑 Clear</button>
+      <button class="btn primary" id="downloadBtn">⬇ Save chart</button>
+    </div>
+    <div class="count"><b id="starCount">0</b> stars placed</div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+    const stage = document.getElementById("stage");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const hint = document.getElementById("hint");
+    const nameInput = document.getElementById("nameInput");
+    const starCountEl = document.getElementById("starCount");
+
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let W = 0, H = 0;
+    let stars = [];            // {x,y} normalized 0..1
+    let edges = [];            // [i,j]
+    let bgStars = [];          // {x,y,r,base,tw,ph}
+    let shooting = null;       // {x,y,vx,vy,life}
+    let nextShoot = 4 + Math.random() * 6;
+    let last = performance.now();
+
+    function makeBg() {
+      bgStars = [];
+      for (let i = 0; i < 150; i++) {
+        bgStars.push({
+          x: Math.random(), y: Math.random(),
+          r: Math.random() * 1.1 + 0.3,
+          base: Math.random() * 0.5 + 0.2,
+          tw: Math.random() * 2 + 0.6,
+          ph: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    function resize() {
+      const rect = stage.getBoundingClientRect();
+      W = rect.width; H = rect.height;
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function addStar(nx, ny) {
+      const i = stars.length;
+      stars.push({ x: nx, y: ny });
+      if (i > 0) {
+        // link to nearest existing star (pixel distance)
+        let best = -1, bd = Infinity;
+        for (let j = 0; j < i; j++) {
+          const dx = (stars[j].x - nx) * W, dy = (stars[j].y - ny) * H;
+          const d = dx * dx + dy * dy;
+          if (d < bd) { bd = d; best = j; }
+        }
+        edges.push([i, best]);
+      }
+      starCountEl.textContent = stars.length;
+      hint.classList.add("hidden");
+    }
+
+    function drawGlowStar(c, x, y, size, coreAlpha) {
+      const g = c.createRadialGradient(x, y, 0, x, y, size * 4);
+      g.addColorStop(0, `rgba(255,255,255,${coreAlpha})`);
+      g.addColorStop(0.25, `rgba(255,238,200,${coreAlpha * 0.5})`);
+      g.addColorStop(1, "rgba(255,220,150,0)");
+      c.fillStyle = g;
+      c.beginPath(); c.arc(x, y, size * 4, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "#fff";
+      c.beginPath(); c.arc(x, y, size, 0, Math.PI * 2); c.fill();
+    }
+
+    function paint(c, w, h, time, forExport) {
+      // sky
+      const sky = c.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0, "#0b1030"); sky.addColorStop(0.55, "#070915"); sky.addColorStop(1, "#04050c");
+      c.fillStyle = sky; c.fillRect(0, 0, w, h);
+      // faint nebula wash
+      const neb = c.createRadialGradient(w * 0.7, h * 0.3, 0, w * 0.7, h * 0.3, w * 0.6);
+      neb.addColorStop(0, "rgba(90,80,180,0.12)"); neb.addColorStop(1, "rgba(90,80,180,0)");
+      c.fillStyle = neb; c.fillRect(0, 0, w, h);
+
+      // background stars
+      for (const s of bgStars) {
+        const a = s.base * (0.55 + 0.45 * Math.sin(time * s.tw + s.ph));
+        c.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+        c.beginPath(); c.arc(s.x * w, s.y * h, s.r * (w / 780 + 0.5), 0, Math.PI * 2); c.fill();
+      }
+
+      // shooting star
+      if (shooting) {
+        const sx = shooting.x * w, sy = shooting.y * h;
+        const tx = sx - shooting.vx * 90, ty = sy - shooting.vy * 90;
+        const g = c.createLinearGradient(sx, sy, tx, ty);
+        g.addColorStop(0, `rgba(255,255,255,${0.8 * shooting.life})`);
+        g.addColorStop(1, "rgba(255,255,255,0)");
+        c.strokeStyle = g; c.lineWidth = 2; c.lineCap = "round";
+        c.beginPath(); c.moveTo(sx, sy); c.lineTo(tx, ty); c.stroke();
+      }
+
+      // constellation lines
+      c.strokeStyle = "rgba(255,225,160,0.45)"; c.lineWidth = 1;
+      for (const [a, b] of edges) {
+        c.beginPath();
+        c.moveTo(stars[a].x * w, stars[a].y * h);
+        c.lineTo(stars[b].x * w, stars[b].y * h);
+        c.stroke();
+      }
+      // constellation stars
+      const scale = Math.min(w, h) / 600;
+      for (const s of stars) drawGlowStar(c, s.x * w, s.y * h, 2.4 * scale, 1);
+
+      // label
+      const name = nameInput.value.trim();
+      if (name || (forExport && stars.length)) {
+        c.textAlign = "center";
+        c.fillStyle = "rgba(255,212,121,0.95)";
+        c.font = `italic ${Math.round(26 * scale)}px Georgia, 'Times New Roman', serif`;
+        c.fillText(name || "Untitled", w / 2, h - 40 * scale);
+      }
+      if (forExport) {
+        c.fillStyle = "rgba(233,236,255,0.5)";
+        c.font = `${Math.round(12 * scale)}px -apple-system, sans-serif`;
+        const d = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+        c.fillText(`Charted ${d} · ${stars.length} stars`, w / 2, h - 18 * scale);
+      }
+    }
+
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      const t = now / 1000;
+      // shooting star lifecycle
+      if (shooting) {
+        shooting.x += shooting.vx * dt; shooting.y += shooting.vy * dt;
+        shooting.life -= dt * 0.8;
+        if (shooting.life <= 0 || shooting.x > 1.1 || shooting.y > 1.1) shooting = null;
+      } else {
+        nextShoot -= dt;
+        if (nextShoot <= 0) {
+          nextShoot = 6 + Math.random() * 8;
+          const startX = Math.random() * 0.5, startY = Math.random() * 0.4;
+          shooting = { x: startX, y: startY, vx: 0.25 + Math.random() * 0.2, vy: 0.12 + Math.random() * 0.12, life: 1 };
+        }
+      }
+      paint(ctx, W, H, t, false);
+      requestAnimationFrame(loop);
+    }
+
+    // input
+    stage.addEventListener("pointerdown", (e) => {
+      const rect = stage.getBoundingClientRect();
+      const nx = (e.clientX - rect.left) / rect.width;
+      const ny = (e.clientY - rect.top) / rect.height;
+      if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
+      addStar(nx, ny);
+    });
+    document.getElementById("undoBtn").addEventListener("click", () => {
+      if (!stars.length) return;
+      stars.pop();
+      edges = edges.filter(([a, b]) => a < stars.length && b < stars.length);
+      starCountEl.textContent = stars.length;
+      if (!stars.length) hint.classList.remove("hidden");
+    });
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      stars = []; edges = []; starCountEl.textContent = 0; hint.classList.remove("hidden");
+    });
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      const w = 1600, h = 1200;
+      const out = document.createElement("canvas"); out.width = w; out.height = h;
+      paint(out.getContext("2d"), w, h, performance.now() / 1000, true);
+      const a = document.createElement("a");
+      a.download = "star-map-" + (nameInput.value.trim().replace(/\s+/g, "-").toLowerCase() || "chart") + ".png";
+      a.href = out.toDataURL("image/png"); a.click();
+    });
+
+    let rt = null;
+    window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(resize, 120); });
+
+    makeBg(); resize();
+    requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>

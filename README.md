@@ -16,6 +16,9 @@ A small static site of browser games — no build step, no dependencies.
 
 ### 🎨 Creative
 - **Generative Doodle Pad** (`doodle/`) — draw and watch strokes bloom into kaleidoscope art with symmetry mirroring, color-shifting brushes, and glowing particle trails.
+- **Loop Bloom** (`loop-bloom/`) — a pentatonic tap-grid music sequencer (Web Audio API) with tempo/sound controls, a random generator, and shareable loops encoded in the URL.
+- **Mesh** (`mesh/`) — a mesh-gradient wallpaper generator with draggable colour points, palette randomizer, grain, and PNG export at several resolutions.
+- **Star Map** (`star-map/`) — tap the sky to place stars that auto-link into a constellation; name it and export a shareable star chart.
 
 Everything is plain HTML/CSS/JS and stores progress in the browser's `localStorage`. The landing page has a **feedback** link that opens a pre-addressed email.
 
