@@ -11,7 +11,14 @@
     <header>
       <div class="title-block">
         <h1>Word Ladder</h1>
-        <div class="subtitle" id="puzzleLabel">Daily puzzle</div>
+        <div class="sub-row">
+          <span class="subtitle" id="puzzleLabel">Daily puzzle</span>
+          <span class="diff-badge" id="diffBadge"></span>
+          <span class="len-toggle" id="lenToggle">
+            <button type="button" data-len="4" class="active">4</button>
+            <button type="button" data-len="5">5</button>
+          </span>
+        </div>
       </div>
       <div class="stats" id="stats">🔥 0 streak</div>
     </header>
@@ -84,7 +91,9 @@
   </div>
 
   <script src="words.js"></script>
+  <script src="words5.js"></script>
   <script src="puzzles.js"></script>
+  <script src="puzzles5.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,4 +1,38 @@
-const WORD_SET = new Set(WORDS);
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function dayNumber() {
+  return Math.floor(Date.now() / 86400000);
+}
+
+function load(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function save(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+// ── mode ─────────────────────────────────────────────────────────────────────
+
+let wordLen = parseInt(localStorage.getItem("wordLadderLen") || "4");
+if (wordLen !== 4 && wordLen !== 5) wordLen = 4;
+
+let activeWordSet = new Set(WORDS);
+let activePuzzles = PUZZLES;
+
+function statsKey()    { return wordLen === 5 ? "wordLadderStats5"    : "wordLadderStats"; }
+function progressKey() { return wordLen === 5 ? "wordLadderProgress5" : "wordLadderProgress"; }
+
+// ── word graph ────────────────────────────────────────────────────────────────
 
 function neighbors(word) {
   const res = [];
@@ -7,7 +41,7 @@ function neighbors(word) {
       const ch = String.fromCharCode(c);
       if (ch === word[i]) continue;
       const cand = word.slice(0, i) + ch + word.slice(i + 1);
-      if (WORD_SET.has(cand)) res.push(cand);
+      if (activeWordSet.has(cand)) res.push(cand);
     }
   }
   return res;
@@ -34,75 +68,62 @@ function bfsPath(start, end) {
   return null;
 }
 
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+// ── stats ─────────────────────────────────────────────────────────────────────
+
+function loadStats() {
+  const s = load(statsKey(), {
+    lastSolvedDate: null, currentStreak: 0, maxStreak: 0,
+    played: 0, won: 0, overParSum: 0,
+  });
+  s.played        = s.played        || 0;
+  s.won           = s.won           || 0;
+  s.overParSum    = s.overParSum    || 0;
+  s.currentStreak = s.currentStreak || 0;
+  s.maxStreak     = s.maxStreak     || 0;
+  return s;
 }
 
-function dayNumber() {
-  return Math.floor(Date.now() / 86400000);
-}
+let stats = loadStats();
 
-function load(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function save(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
+// ── elements ──────────────────────────────────────────────────────────────────
 
 const els = {
-  puzzleLabel: document.getElementById("puzzleLabel"),
-  stats: document.getElementById("stats"),
-  statGrid: document.getElementById("statGrid"),
-  ladder: document.getElementById("ladder"),
-  guessForm: document.getElementById("guessForm"),
-  guessInput: document.getElementById("guessInput"),
-  feedback: document.getElementById("feedback"),
-  undoBtn: document.getElementById("undoBtn"),
-  hintBtn: document.getElementById("hintBtn"),
-  giveUpBtn: document.getElementById("giveUpBtn"),
-  newPuzzleBtn: document.getElementById("newPuzzleBtn"),
-  moveCount: document.getElementById("moveCount"),
-  parCount: document.getElementById("parCount"),
-  hintCount: document.getElementById("hintCount"),
-  celebration: document.getElementById("celebration"),
+  puzzleLabel:      document.getElementById("puzzleLabel"),
+  diffBadge:        document.getElementById("diffBadge"),
+  lenToggle:        document.getElementById("lenToggle"),
+  stats:            document.getElementById("stats"),
+  statGrid:         document.getElementById("statGrid"),
+  ladder:           document.getElementById("ladder"),
+  guessForm:        document.getElementById("guessForm"),
+  guessInput:       document.getElementById("guessInput"),
+  feedback:         document.getElementById("feedback"),
+  undoBtn:          document.getElementById("undoBtn"),
+  hintBtn:          document.getElementById("hintBtn"),
+  giveUpBtn:        document.getElementById("giveUpBtn"),
+  newPuzzleBtn:     document.getElementById("newPuzzleBtn"),
+  moveCount:        document.getElementById("moveCount"),
+  parCount:         document.getElementById("parCount"),
+  hintCount:        document.getElementById("hintCount"),
+  celebration:      document.getElementById("celebration"),
   celebrationEmoji: document.getElementById("celebrationEmoji"),
-  celebrationText: document.getElementById("celebrationText"),
-  celebrationSub: document.getElementById("celebrationSub"),
+  celebrationText:  document.getElementById("celebrationText"),
+  celebrationSub:   document.getElementById("celebrationSub"),
   celebrationClose: document.getElementById("celebrationClose"),
-  shareBtn: document.getElementById("shareBtn"),
+  shareBtn:         document.getElementById("shareBtn"),
 };
 
-const stats = load("wordLadderStats", {
-  lastSolvedDate: null,
-  currentStreak: 0,
-  maxStreak: 0,
-  played: 0,
-  won: 0,
-  overParSum: 0,
-});
-// backfill fields for players who have older saved stats
-stats.played = stats.played || 0;
-stats.won = stats.won || 0;
-stats.overParSum = stats.overParSum || 0;
-stats.currentStreak = stats.currentStreak || 0;
-stats.maxStreak = stats.maxStreak || 0;
+// ── state ─────────────────────────────────────────────────────────────────────
 
 let state = null;
 
 function newState(puzzle, isDaily) {
   const optimal = bfsPath(puzzle.start, puzzle.end);
   return {
-    puzzleIndex: PUZZLES.indexOf(puzzle),
+    puzzleIndex: activePuzzles.indexOf(puzzle),
     start: puzzle.start,
     end: puzzle.end,
     chain: [puzzle.start],
-    hinted: [],        // chain indices that came from the hint button
+    hinted: [],
     moves: 0,
     hintsUsed: 0,
     par: optimal ? optimal.length - 1 : 0,
@@ -113,9 +134,9 @@ function newState(puzzle, isDaily) {
 }
 
 function initDaily() {
-  const idx = dayNumber() % PUZZLES.length;
-  const puzzle = PUZZLES[idx];
-  const saved = load("wordLadderProgress", null);
+  const idx = dayNumber() % activePuzzles.length;
+  const puzzle = activePuzzles[idx];
+  const saved = load(progressKey(), null);
   if (saved && saved.date === todayKey() && saved.puzzleIndex === idx &&
       saved.state && saved.state.start === puzzle.start && saved.state.end === puzzle.end) {
     state = saved.state;
@@ -130,15 +151,52 @@ function initDaily() {
 
 function persistDaily() {
   if (!state.isDaily) return;
-  save("wordLadderProgress", { date: todayKey(), puzzleIndex: state.puzzleIndex, state });
+  save(progressKey(), { date: todayKey(), puzzleIndex: state.puzzleIndex, state });
 }
 
 function startPractice() {
-  const idx = Math.floor(Math.random() * PUZZLES.length);
-  state = newState(PUZZLES[idx], false);
+  const idx = Math.floor(Math.random() * activePuzzles.length);
+  state = newState(activePuzzles[idx], false);
   els.puzzleLabel.textContent = "Practice puzzle";
   renderAll();
 }
+
+// ── difficulty badge ──────────────────────────────────────────────────────────
+
+function renderDiffBadge() {
+  const b = els.diffBadge;
+  if (!b) return;
+  if (!state || !state.isDaily) {
+    b.textContent = "";
+    b.className = "diff-badge";
+    return;
+  }
+  const par = state.par;
+  const [text, cls] = par <= 4 ? ["Easy", "easy"] : par <= 6 ? ["Medium", "medium"] : ["Hard", "hard"];
+  b.textContent = text;
+  b.className = `diff-badge ${cls}`;
+}
+
+// ── mode switching ────────────────────────────────────────────────────────────
+
+function applyToggleUI() {
+  els.lenToggle.querySelectorAll("button").forEach(btn => {
+    btn.classList.toggle("active", parseInt(btn.dataset.len) === wordLen);
+  });
+}
+
+function switchMode(len) {
+  wordLen = len;
+  localStorage.setItem("wordLadderLen", String(len));
+  activeWordSet = len === 5 ? new Set(WORDS5) : new Set(WORDS);
+  activePuzzles = len === 5 ? PUZZLES5 : PUZZLES;
+  applyToggleUI();
+  stats = loadStats();
+  initDaily();
+  renderAll();
+}
+
+// ── utility ───────────────────────────────────────────────────────────────────
 
 function letterDiffIndex(a, b) {
   for (let i = 0; i < a.length; i++) {
@@ -152,6 +210,8 @@ function countDiff(a, b) {
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
   return d;
 }
+
+// ── rendering ─────────────────────────────────────────────────────────────────
 
 function renderLadder() {
   els.ladder.innerHTML = "";
@@ -168,8 +228,8 @@ function renderLadder() {
     for (let i = 0; i < word.length; i++) {
       const span = document.createElement("span");
       let cls = "letter";
-      if (word[i] === state.end[i]) cls += " match";     // letter already matches the target
-      if (i === diffIdx) cls += " changed";              // the letter changed on this step
+      if (word[i] === state.end[i]) cls += " match";
+      if (i === diffIdx) cls += " changed";
       span.className = cls;
       span.textContent = word[i];
       rung.appendChild(span);
@@ -204,12 +264,12 @@ function renderStats() {
   const winPct = stats.played ? Math.round((stats.won / stats.played) * 100) : 0;
   const avgOver = stats.won ? stats.overParSum / stats.won : 0;
   const cells = [
-    [stats.played, "Played"],
-    [winPct + "%", "Win rate"],
+    [stats.played,  "Played"],
+    [winPct + "%",  "Win rate"],
     [stats.currentStreak, "Streak"],
-    [stats.maxStreak, "Best streak"],
+    [stats.maxStreak,     "Best streak"],
     [stats.won ? "+" + avgOver.toFixed(1) : "—", "Avg over par"],
-    [stats.won, "Solved"],
+    [stats.won,     "Solved"],
   ];
   els.statGrid.innerHTML = cells
     .map(([v, l]) => `<div class="stat"><div class="value">${v}</div><div class="label">${l}</div></div>`)
@@ -220,6 +280,7 @@ function renderAll() {
   renderLadder();
   renderMeta();
   renderStats();
+  renderDiffBadge();
   els.feedback.textContent = "";
   els.feedback.className = "feedback";
   const finished = state.solved || state.revealed;
@@ -231,6 +292,8 @@ function renderAll() {
   els.guessInput.value = "";
   if (!finished) els.guessInput.focus();
 }
+
+// ── game logic ────────────────────────────────────────────────────────────────
 
 function showFeedback(msg, ok) {
   els.feedback.textContent = msg;
@@ -258,7 +321,7 @@ function submitGuess(raw) {
     showFeedback("Change exactly one letter from the last word.");
     return;
   }
-  if (!WORD_SET.has(guess)) {
+  if (!activeWordSet.has(guess)) {
     showFeedback(`"${guess}" isn't in the word list.`);
     return;
   }
@@ -328,7 +391,7 @@ function finishPuzzle(revealed) {
     } else {
       stats.currentStreak = 0;
     }
-    save("wordLadderStats", stats);
+    save(statsKey(), stats);
   }
 
   if (!revealed) {
@@ -358,14 +421,14 @@ function showCelebration(text, sub) {
 }
 
 function buildShareText() {
-  const title = `Word Ladder ▸ ${state.start}→${state.end}`;
+  const label = `Word Ladder ${wordLen}L ▸ ${state.start}→${state.end}`;
   const result = state.revealed
     ? "Revealed the answer 🙈"
     : `Solved in ${state.moves} (best ${state.par})${state.hintsUsed ? ` · ${state.hintsUsed}💡` : ""}`;
   const grid = state.chain
     .map((w) => [...w].map((ch, i) => (ch === state.end[i] ? "🟩" : "⬛")).join(""))
     .join("\n");
-  return `${title}\n${result}\n${grid}\n${location.href}`;
+  return `${label}\n${result}\n${grid}\n${location.href}`;
 }
 
 async function doShare() {
@@ -381,16 +444,11 @@ async function doShare() {
   } catch {
     const ta = document.createElement("textarea");
     ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
+    ta.style.cssText = "position:fixed;opacity:0";
     document.body.appendChild(ta);
     ta.select();
-    try {
-      document.execCommand("copy");
-      flash("Copied! ✅");
-    } catch {
-      flash("Press Ctrl/Cmd+C");
-    }
+    try { document.execCommand("copy"); flash("Copied! ✅"); }
+    catch { flash("Press Ctrl/Cmd+C"); }
     document.body.removeChild(ta);
   }
 }
@@ -412,9 +470,11 @@ function playChime() {
       osc.stop(ctx.currentTime + i * 0.12 + 0.35);
     });
   } catch {
-    // audio not available, ignore
+    // audio not available
   }
 }
+
+// ── event listeners ───────────────────────────────────────────────────────────
 
 els.guessForm.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -426,9 +486,18 @@ els.hintBtn.addEventListener("click", useHint);
 els.giveUpBtn.addEventListener("click", giveUp);
 els.newPuzzleBtn.addEventListener("click", startPractice);
 els.shareBtn.addEventListener("click", doShare);
-els.celebrationClose.addEventListener("click", () => {
-  els.celebration.classList.remove("show");
+els.celebrationClose.addEventListener("click", () => els.celebration.classList.remove("show"));
+
+els.lenToggle.querySelectorAll("button").forEach(btn => {
+  btn.addEventListener("click", () => switchMode(parseInt(btn.dataset.len)));
 });
 
+// ── boot ──────────────────────────────────────────────────────────────────────
+
+if (wordLen === 5) {
+  activeWordSet = new Set(WORDS5);
+  activePuzzles = PUZZLES5;
+}
+applyToggleUI();
 initDaily();
 renderAll();

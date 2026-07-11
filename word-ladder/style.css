@@ -241,6 +241,49 @@ button:active { transform: scale(0.97); }
 .celebration-text { font-size: 1.2rem; font-weight: 600; margin-bottom: 6px; }
 .celebration-sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 18px; }
 
+.sub-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.diff-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  display: none;
+}
+.diff-badge.easy   { display: inline-block; background: rgba(110,255,160,0.15); color: var(--accent);  border: 1px solid rgba(110,255,160,0.35); }
+.diff-badge.medium { display: inline-block; background: rgba(255,200,50,0.15);  color: #ffc832;        border: 1px solid rgba(255,200,50,0.35); }
+.diff-badge.hard   { display: inline-block; background: rgba(255,107,94,0.15);  color: var(--bad);     border: 1px solid rgba(255,107,94,0.35); }
+
+.len-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.len-toggle button {
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  transform: none;
+}
+.len-toggle button + button { border-left: 1px solid var(--border); }
+.len-toggle button.active   { background: var(--accent2); color: #041018; }
+.len-toggle button:hover:not(.active) { background: rgba(255,255,255,0.07); color: var(--text); }
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pop {
   from { transform: scale(0.7); opacity: 0; }
